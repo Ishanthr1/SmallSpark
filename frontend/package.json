@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@clerk/clerk-react": "^5.59.2",
     "@supabase/supabase-js": "^2.89.0",
     "autoprefixer": "^10.4.23",
     "axios": "^1.13.2",
