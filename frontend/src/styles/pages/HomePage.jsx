@@ -304,10 +304,6 @@ const HomePage = () => {
                                     <span>Get Started Free</span>
                                     <ArrowRight size={20} />
                                 </button>
-                                <button style={styles.ctaSecondary} onClick={handleButtonClick}>
-                                    <Clock size={20} />
-                                    <span>Watch Demo</span>
-                                </button>
                             </div>
                         </div>
                         <div style={styles.ctaFeatures}>
@@ -441,7 +437,7 @@ const styles = {
         animation: 'bounce 2s infinite'
     },
     heroTitle: {
-        fontSize: '4rem',
+        fontSize: '3.5rem',
         fontWeight: '800',
         lineHeight: '1.1',
         marginBottom: '1.5rem',
