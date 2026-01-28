@@ -23,121 +23,35 @@ const darkColors = {
     border: '#334155'
 };
 
-// Sample businesses for drag-and-drop board
-const featuredBusinesses = [
-    {
-        id: 1,
-        name: "Bloom Café",
-        category: "Food & Dining",
-        rating: 4.8,
-        image: "☕",
-        color: pastelColors[0],
-        deals: "20% off coffee",
-        description: "Cozy café with artisan coffee and fresh pastries",
-        location: "Downtown Plaza",
-        phone: "(555) 123-4567",
-        position: { x: 50, y: 80 },
-        rotation: -3
-    },
-    {
-        id: 2,
-        name: "The Cut Studio",
-        category: "Health & Beauty",
-        rating: 4.9,
-        image: "✂️",
-        color: pastelColors[4],
-        deals: "Free consultation",
-        description: "Premium hair styling and beauty services",
-        location: "Main Street",
-        phone: "(555) 234-5678",
-        position: { x: 300, y: 100 },
-        rotation: 2
-    },
-    {
-        id: 3,
-        name: "Artisan Bakery",
-        category: "Food & Dining",
-        rating: 4.7,
-        image: "🥐",
-        color: pastelColors[1],
-        deals: "Buy 2 get 1 free",
-        description: "Fresh baked goods daily, family recipes",
-        location: "Oak Avenue",
-        phone: "(555) 345-6789",
-        position: { x: 550, y: 60 },
-        rotation: -2
-    },
-    {
-        id: 4,
-        name: "Zenith Fitness",
-        category: "Fitness",
-        rating: 4.8,
-        image: "💪",
-        color: pastelColors[5],
-        deals: "First month free",
-        description: "Modern gym with personal training",
-        location: "Park District",
-        phone: "(555) 456-7890",
-        position: { x: 800, y: 120 },
-        rotation: 1
-    },
-    {
-        id: 5,
-        name: "Vintage Threads",
-        category: "Retail",
-        rating: 4.6,
-        image: "👗",
-        color: pastelColors[8],
-        deals: "30% off sale items",
-        description: "Curated vintage clothing and accessories",
-        location: "Arts Quarter",
-        phone: "(555) 567-8901",
-        position: { x: 150, y: 300 },
-        rotation: -4
-    },
-    {
-        id: 6,
-        name: "Fix-It Pro",
-        category: "Services",
-        rating: 4.9,
-        image: "🔧",
-        color: pastelColors[2],
-        deals: "Free estimate",
-        description: "Professional home repair services",
-        location: "Industrial Park",
-        phone: "(555) 678-9012",
-        position: { x: 400, y: 280 },
-        rotation: 3
-    },
-    {
-        id: 7,
-        name: "Green Leaf",
-        category: "Food & Dining",
-        rating: 4.7,
-        image: "🌿",
-        color: pastelColors[3],
-        deals: "Happy hour 3-6pm",
-        description: "Farm-to-table organic restaurant",
-        location: "Riverside",
-        phone: "(555) 789-0123",
-        position: { x: 650, y: 320 },
-        rotation: -1
-    },
-    {
-        id: 8,
-        name: "Pixel Studio",
-        category: "Services",
-        rating: 4.8,
-        image: "🎨",
-        color: pastelColors[7],
-        deals: "First project 15% off",
-        description: "Creative design and branding studio",
-        location: "Tech Hub",
-        phone: "(555) 890-1234",
-        position: { x: 900, y: 250 },
-        rotation: 2
-    }
-];
+// Generate random velocity for floating
+const randomVelocity = () => ({
+    x: (Math.random() - 0.5) * 0.8,
+    y: (Math.random() - 0.5) * 0.8
+});
+
+// Create businesses with random starting positions and velocities
+const createFloatingBusinesses = () => {
+    const businesses = [
+        { id: 1, name: "Bloom Café", category: "Food & Dining", rating: 4.8, image: "☕", color: pastelColors[0], deals: "20% off coffee", description: "Cozy café with artisan coffee and fresh pastries", location: "Downtown Plaza", phone: "(555) 123-4567", rotation: -3 },
+        { id: 2, name: "The Cut Studio", category: "Health & Beauty", rating: 4.9, image: "✂️", color: pastelColors[4], deals: "Free consultation", description: "Premium hair styling and beauty services", location: "Main Street", phone: "(555) 234-5678", rotation: 2 },
+        { id: 3, name: "Artisan Bakery", category: "Food & Dining", rating: 4.7, image: "🥐", color: pastelColors[1], deals: "Buy 2 get 1 free", description: "Fresh baked goods daily, family recipes", location: "Oak Avenue", phone: "(555) 345-6789", rotation: -2 },
+        { id: 4, name: "Zenith Fitness", category: "Fitness", rating: 4.8, image: "💪", color: pastelColors[5], deals: "First month free", description: "Modern gym with personal training", location: "Park District", phone: "(555) 456-7890", rotation: 1 },
+        { id: 5, name: "Vintage Threads", category: "Retail", rating: 4.6, image: "👗", color: pastelColors[8], deals: "30% off sale items", description: "Curated vintage clothing and accessories", location: "Arts Quarter", phone: "(555) 567-8901", rotation: -4 },
+        { id: 6, name: "Fix-It Pro", category: "Services", rating: 4.9, image: "🔧", color: pastelColors[2], deals: "Free estimate", description: "Professional home repair services", location: "Industrial Park", phone: "(555) 678-9012", rotation: 3 },
+        { id: 7, name: "Green Leaf", category: "Food & Dining", rating: 4.7, image: "🌿", color: pastelColors[3], deals: "Happy hour 3-6pm", description: "Farm-to-table organic restaurant", location: "Riverside", phone: "(555) 789-0123", rotation: -1 },
+        { id: 8, name: "Pixel Studio", category: "Services", rating: 4.8, image: "🎨", color: pastelColors[7], deals: "First project 15% off", description: "Creative design and branding studio", location: "Tech Hub", phone: "(555) 890-1234", rotation: 2 }
+    ];
+
+    return businesses.map(business => ({
+        ...business,
+        position: {
+            x: Math.random() * (window.innerWidth - 250),
+            y: Math.random() * (window.innerHeight - 250)
+        },
+        velocity: randomVelocity(),
+        isDragging: false
+    }));
+};
 
 const categories = [
     { name: 'Food & Dining', icon: Store, count: '1,234', color: '#FF6B6B' },
@@ -182,14 +96,20 @@ const DarkModeToggle = ({ isDark, onToggle }) => {
     );
 };
 
-// Draggable Business Card Component
-const DraggableBusinessCard = ({ business, onDragStart, onDragEnd, isHovered, onHover, isDarkMode }) => {
+// Floating Business Card Component with Repulsion
+const FloatingBusinessCard = ({ business, allBusinesses, onPositionUpdate, onDragStart, onDragEnd, isHovered, onHover, isDarkMode }) => {
     const [isDragging, setIsDragging] = useState(false);
-    const [localPosition, setLocalPosition] = useState(business.position);
+    const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
     const cardRef = useRef(null);
 
     const handleMouseDown = (e) => {
         if (e.target.closest('button') || e.target.closest('a')) return;
+
+        const rect = cardRef.current.getBoundingClientRect();
+        setDragOffset({
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+        });
         setIsDragging(true);
         onDragStart(business.id);
         e.preventDefault();
@@ -199,15 +119,14 @@ const DraggableBusinessCard = ({ business, onDragStart, onDragEnd, isHovered, on
         if (!isDragging) return;
 
         const handleMouseMove = (e) => {
-            setLocalPosition(prev => ({
-                x: prev.x + e.movementX,
-                y: prev.y + e.movementY
-            }));
+            const newX = e.clientX - dragOffset.x;
+            const newY = e.clientY - dragOffset.y;
+            onPositionUpdate(business.id, { x: newX, y: newY }, true);
         };
 
         const handleMouseUp = () => {
             setIsDragging(false);
-            onDragEnd(business.id, localPosition);
+            onDragEnd(business.id);
         };
 
         window.addEventListener('mousemove', handleMouseMove);
@@ -217,33 +136,29 @@ const DraggableBusinessCard = ({ business, onDragStart, onDragEnd, isHovered, on
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
         };
-    }, [isDragging, business.id, localPosition, onDragEnd]);
+    }, [isDragging, dragOffset, business.id, onPositionUpdate, onDragEnd]);
 
     return (
         <div
             ref={cardRef}
             style={{
                 position: 'absolute',
+                left: `${business.position.x}px`,
+                top: `${business.position.y}px`,
+                transform: `rotate(${business.rotation}deg)`,
                 padding: '1.5rem',
                 borderRadius: '12px',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                transition: isDragging ? 'none' : 'transform 0.2s ease',
                 userSelect: 'none',
                 fontFamily: "'Patrick Hand', cursive, 'Poppins', sans-serif",
                 border: '2px solid rgba(0,0,0,0.08)',
-                willChange: 'transform',
-                left: `${localPosition.x}px`,
-                top: `${localPosition.y}px`,
                 backgroundColor: business.color,
-                transform: isHovered
-                    ? 'scale(1.15) rotate(0deg)'
-                    : `rotate(${business.rotation}deg)`,
                 zIndex: isDragging ? 1000 : (isHovered ? 100 : 1),
                 cursor: isDragging ? 'grabbing' : 'grab',
-                width: isHovered ? '320px' : '200px',
-                height: isHovered ? 'auto' : '220px',
-                boxShadow: isHovered
-                    ? '0 20px 60px rgba(0,0,0,0.25)'
-                    : (isDragging ? '0 15px 40px rgba(0,0,0,0.2)' : '0 8px 20px rgba(0,0,0,0.12)')
+                width: '200px',
+                height: '220px',
+                boxShadow: isDragging ? '0 15px 40px rgba(0,0,0,0.2)' : '0 8px 20px rgba(0,0,0,0.12)',
+                pointerEvents: 'auto'
             }}
             onMouseDown={handleMouseDown}
             onMouseEnter={() => !isDragging && onHover(business.id)}
@@ -268,31 +183,82 @@ const DraggableBusinessCard = ({ business, onDragStart, onDragEnd, isHovered, on
                     <span>{business.rating}</span>
                 </div>
                 <p style={{ textAlign: 'center', fontSize: '0.875rem', color: '#666', marginBottom: '0.75rem' }}>{business.category}</p>
-
-                {/* Expanded content - only visible on hover */}
-                {isHovered && (
-                    <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '2px solid rgba(0,0,0,0.1)', animation: 'fadeIn 0.3s ease' }}>
-                        <p style={{ fontSize: '0.9rem', color: '#444', marginBottom: '1rem', lineHeight: '1.5', textAlign: 'center' }}>{business.description}</p>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#555', justifyContent: 'center' }}>
-                                <MapPin size={14} />
-                                <span>{business.location}</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#555', justifyContent: 'center' }}>
-                                <Phone size={14} />
-                                <span>{business.phone}</span>
-                            </div>
-                        </div>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', backgroundColor: 'rgba(255,255,255,0.8)', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600', color: '#1a1a1a', marginBottom: '1rem', border: '2px solid rgba(0,0,0,0.1)', width: '100%', justifyContent: 'center' }}>
-                            <Award size={14} />
-                            <span>{business.deals}</span>
-                        </div>
-                        <button style={{ width: '100%', padding: '0.75rem 1rem', backgroundColor: '#1a1a1a', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.3s ease', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
-                            View Details <ArrowRight size={14} />
-                        </button>
-                    </div>
-                )}
             </div>
+        </div>
+    );
+};
+
+// Center Text with Hoverable Container
+const CenterTextWithContainer = ({ isDarkMode }) => {
+    const [isHovered, setIsHovered] = useState(false);
+
+    return (
+        <div
+            style={{
+                position: 'absolute',
+                left: '50%',
+                top: '50%',
+                transform: 'translate(-50%, -50%)',
+                padding: '3rem 4rem',
+                textAlign: 'center',
+                minWidth: '500px',
+                zIndex: 5,
+                pointerEvents: 'auto',
+                backgroundColor: isHovered ? (isDarkMode ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)') : 'transparent',
+                borderRadius: '24px',
+                border: isHovered ? '3px solid #ff6b35' : '3px solid transparent',
+                boxShadow: isHovered ? '0 30px 80px rgba(255, 107, 53, 0.35)' : 'none',
+                backdropFilter: isHovered ? 'blur(10px)' : 'none',
+                transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'
+            }}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+        >
+            <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.5rem 1rem',
+                backgroundColor: isDarkMode ? 'rgba(100, 116, 139, 0.5)' : 'rgba(255, 255, 255, 0.8)',
+                borderRadius: '50px',
+                fontSize: '0.875rem',
+                fontWeight: '600',
+                marginBottom: '1.5rem',
+                border: '2px solid #ff6b35',
+                boxShadow: '0 4px 15px rgba(255, 107, 53, 0.3)',
+                transition: 'all 0.3s ease',
+                transform: isHovered ? 'scale(1.05)' : 'scale(1)'
+            }}>
+                <Zap size={16} style={{ color: '#ff6b35' }} />
+                <span style={{ color: isDarkMode ? '#f1f5f9' : '#1a1a1a' }}>Discover Local. Support Small.</span>
+            </div>
+
+            <h1 style={{
+                fontSize: '3.5rem',
+                fontWeight: '800',
+                marginBottom: '1rem',
+                color: isDarkMode ? '#f1f5f9' : '#1a1a1a',
+                lineHeight: '1.1'
+            }}>
+                Discover & Support<br />
+                <span style={{
+                    background: 'linear-gradient(135deg, #ff6b35, #f7931e)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text'
+                }}>
+                    Local Businesses
+                </span>
+            </h1>
+
+            <p style={{
+                fontSize: '1.25rem',
+                color: isDarkMode ? '#94a3b8' : '#666',
+                fontWeight: '500',
+                marginTop: '1rem'
+            }}>
+                Drag and explore amazing businesses
+            </p>
         </div>
     );
 };
@@ -302,61 +268,117 @@ const HomePage = () => {
     const { isSignedIn, user } = useUser();
 
     const [isDarkMode, setIsDarkMode] = useState(false);
-    const [isScrolled, setIsScrolled] = useState(false);
-
-    // Mouse gradient state with lighter colors
-    const [mousePosition, setMousePosition] = useState({ x: 50, y: 50 });
-    const [gradientColors, setGradientColors] = useState({
-        primary: pastelColors[0],
-        secondary: pastelColors[4]
-    });
-
-    // Business cards state
-    const [businesses, setBusinesses] = useState(featuredBusinesses);
+    const [businesses, setBusinesses] = useState(createFloatingBusinesses());
     const [draggingId, setDraggingId] = useState(null);
     const [hoveredId, setHoveredId] = useState(null);
 
-    // Scroll animation state
+    // Stats highlighting state - simplified
+    const [highlightedStatIndex, setHighlightedStatIndex] = useState(-1);
+    const [isInStatsSection, setIsInStatsSection] = useState(false);
+    const lastScrollY = useRef(0);
+    const scrollAccumulator = useRef(0);
+
     const [scrollProgress, setScrollProgress] = useState(0);
     const [visibleSections, setVisibleSections] = useState(new Set());
 
-    // Refs for scroll animation
-    const boardRef = useRef(null);
     const statsRef = useRef(null);
     const featuresRef = useRef(null);
     const categoriesRef = useRef(null);
 
-    // Mouse movement gradient effect with lighter colors
+    // Floating animation with repulsion
     useEffect(() => {
-        const handleMouseMove = (e) => {
-            const x = (e.clientX / window.innerWidth) * 100;
-            const y = (e.clientY / window.innerHeight) * 100;
-            setMousePosition({ x, y });
+        let animationId;
 
-            // Use lighter pastel colors for gradient
-            const colorIndex1 = Math.floor((x / 10) % pastelColors.length);
-            const colorIndex2 = Math.floor((y / 10) % pastelColors.length);
+        const animate = () => {
+            setBusinesses(prev => prev.map((business, index) => {
+                if (business.id === draggingId) return business;
 
-            setGradientColors({
-                primary: pastelColors[colorIndex1],
-                secondary: pastelColors[colorIndex2]
-            });
+                let newX = business.position.x + business.velocity.x;
+                let newY = business.position.y + business.velocity.y;
+                let newVelocityX = business.velocity.x;
+                let newVelocityY = business.velocity.y;
+
+                // Repulsion from other businesses
+                prev.forEach((other, otherIndex) => {
+                    if (index === otherIndex) return;
+
+                    const dx = business.position.x - other.position.x;
+                    const dy = business.position.y - other.position.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    // Only repel if too close
+                    if (distance < 250 && distance > 0) {
+                        const force = (250 - distance) / 250 * 0.3;
+                        newVelocityX += (dx / distance) * force;
+                        newVelocityY += (dy / distance) * force;
+                    }
+                });
+
+                // Limit velocity
+                const speed = Math.sqrt(newVelocityX * newVelocityX + newVelocityY * newVelocityY);
+                if (speed > 1.5) {
+                    newVelocityX = (newVelocityX / speed) * 1.5;
+                    newVelocityY = (newVelocityY / speed) * 1.5;
+                }
+
+                // Wrap around screen edges
+                if (newX < -250) newX = window.innerWidth;
+                if (newX > window.innerWidth) newX = -250;
+                if (newY < -250) newY = window.innerHeight;
+                if (newY > window.innerHeight) newY = -250;
+
+                return {
+                    ...business,
+                    position: { x: newX, y: newY },
+                    velocity: { x: newVelocityX, y: newVelocityY }
+                };
+            }));
+
+            animationId = requestAnimationFrame(animate);
         };
 
-        window.addEventListener('mousemove', handleMouseMove);
-        return () => window.removeEventListener('mousemove', handleMouseMove);
-    }, []);
+        animationId = requestAnimationFrame(animate);
+        return () => cancelAnimationFrame(animationId);
+    }, [draggingId]);
 
-    // Scroll progress tracking
+    // Simplified scroll handler
     useEffect(() => {
         const handleScroll = () => {
+            const currentScrollY = window.scrollY;
             const totalScroll = document.documentElement.scrollHeight - window.innerHeight;
-            const currentProgress = (window.scrollY / totalScroll) * 100;
+            const currentProgress = (currentScrollY / totalScroll) * 100;
             setScrollProgress(currentProgress);
-            setIsScrolled(window.scrollY > 50);
 
+            // Check stats section
+            if (statsRef.current) {
+                const rect = statsRef.current.getBoundingClientRect();
+                const inView = rect.top <= window.innerHeight / 2 && rect.bottom >= window.innerHeight / 2;
+
+                if (inView && !isInStatsSection) {
+                    setIsInStatsSection(true);
+                    scrollAccumulator.current = 0;
+                    setHighlightedStatIndex(0);
+                } else if (!inView && isInStatsSection) {
+                    setIsInStatsSection(false);
+                    setHighlightedStatIndex(-1);
+                }
+
+                // Progress through stats when scrolling in stats section
+                if (inView && currentScrollY > lastScrollY.current) {
+                    scrollAccumulator.current += (currentScrollY - lastScrollY.current);
+
+                    // Every 50px of scroll = next stat
+                    const newIndex = Math.min(Math.floor(scrollAccumulator.current / 50), stats.length - 1);
+                    if (newIndex !== highlightedStatIndex && newIndex < stats.length) {
+                        setHighlightedStatIndex(newIndex);
+                    }
+                }
+            }
+
+            lastScrollY.current = currentScrollY;
+
+            // Visible sections
             const sections = [
-                { ref: boardRef, name: 'board' },
                 { ref: statsRef, name: 'stats' },
                 { ref: featuresRef, name: 'features' },
                 { ref: categoriesRef, name: 'categories' }
@@ -375,29 +397,37 @@ const HomePage = () => {
             setVisibleSections(newVisibleSections);
         };
 
-        window.addEventListener('scroll', handleScroll);
+        window.addEventListener('scroll', handleScroll, { passive: true });
         handleScroll();
+
         return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
+    }, [isInStatsSection, highlightedStatIndex]);
+
+    const handlePositionUpdate = (id, position, isDragging = false) => {
+        setBusinesses(prev => prev.map(b =>
+            b.id === id ? {
+                ...b,
+                position,
+                velocity: isDragging ? { x: 0, y: 0 } : randomVelocity()
+            } : b
+        ));
+    };
 
     const handleDragStart = (id) => {
         setDraggingId(id);
     };
 
-    const handleDragEnd = (id, newPosition) => {
-        setBusinesses(prev => prev.map(b =>
-            b.id === id ? { ...b, position: newPosition } : b
-        ));
+    const handleDragEnd = (id) => {
         setDraggingId(null);
+        setBusinesses(prev => prev.map(b =>
+            b.id === id ? { ...b, velocity: randomVelocity() } : b
+        ));
     };
 
     const handleButtonClick = () => {
         navigate('/dashboard');
     };
 
-    const dynamicGradient = `radial-gradient(circle at ${mousePosition.x}% ${mousePosition.y}%, ${gradientColors.primary}, ${gradientColors.secondary})`;
-
-    // Dynamic styles based on dark mode
     const getStyles = () => ({
         ...styles,
         page: {
@@ -408,29 +438,16 @@ const HomePage = () => {
         nav: {
             ...styles.nav,
             backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-            borderBottom: isDarkMode ? '1px solid rgba(148, 163, 184, 0.1)' : '1px solid rgba(0,0,0,0.06)'
-        },
-        navLink: {
-            ...styles.navLink,
-            color: isDarkMode ? darkColors.text : '#1a1a1a'
+            borderBottom: 'none'
         },
         btnSecondary: {
             ...styles.btnSecondary,
             color: isDarkMode ? darkColors.text : '#1a1a1a',
             borderColor: isDarkMode ? darkColors.border : '#e0e0e0'
         },
-        boardTitle: {
-            ...styles.boardTitle,
-            color: isDarkMode ? darkColors.text : '#1a1a1a'
-        },
-        boardSubtitle: {
-            ...styles.boardSubtitle,
-            color: isDarkMode ? darkColors.textSecondary : '#666'
-        },
-        boardCanvas: {
-            ...styles.boardCanvas,
-            backgroundColor: isDarkMode ? darkColors.cardBg : '#ffffff',
-            border: isDarkMode ? `2px solid ${darkColors.border}` : '2px solid #e8e8e8'
+        heroCanvas: {
+            ...styles.heroCanvas,
+            backgroundColor: isDarkMode ? darkColors.cardBg : '#ffffff'
         },
         statCard: {
             ...styles.statCard,
@@ -497,31 +514,29 @@ const HomePage = () => {
 
     return (
         <div style={currentStyles.page}>
-            {/* Dynamic gradient overlay */}
-            <div style={{
-                ...currentStyles.gradientOverlay,
-                background: dynamicGradient,
-                opacity: isDarkMode ? 0.1 : 0.3
-            }} />
-
             {/* Scroll progress indicator */}
             <div style={{
                 ...currentStyles.scrollProgress,
                 width: `${scrollProgress}%`,
-                background: `linear-gradient(90deg, ${pastelColors[6]}, ${pastelColors[3]})`
+                background: 'linear-gradient(90deg, #ff6b35, #f7931e)'
             }} />
 
-            {/* Navigation */}
+            {/* Floating Navigation */}
             <nav style={{
                 ...currentStyles.nav,
-                padding: isScrolled ? '0.5rem 0' : '1rem 0',
-                borderRadius: isScrolled ? '0 0 20px 20px' : '0',
-                margin: isScrolled ? '0 1rem' : '0',
-                boxShadow: isScrolled ? '0 4px 20px rgba(0,0,0,0.1)' : 'none'
+                position: 'fixed',
+                top: '1rem',
+                left: '1rem',
+                right: '1rem',
+                margin: '0 auto',
+                maxWidth: '1280px',
+                borderRadius: '20px',
+                boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
+                padding: '0.75rem 0'
             }}>
                 <div style={currentStyles.navContainer}>
                     <div style={currentStyles.logo}>
-                        <Sparkles size={28} style={{ color: '#667eea' }} />
+                        <Sparkles size={28} style={{ color: '#ff6b35' }} />
                         <span style={currentStyles.logoText}>SmallSpark</span>
                     </div>
 
@@ -548,49 +563,30 @@ const HomePage = () => {
                 </div>
             </nav>
 
-            {/* Interactive Drag-and-Drop Board with Hero Text */}
-            <section
-                ref={boardRef}
-                style={{
-                    ...currentStyles.interactiveBoard,
-                    transform: visibleSections.has('board') ? 'scale(1)' : 'scale(0.95)',
-                    opacity: visibleSections.has('board') ? 1 : 0
-                }}
-            >
-                <div style={currentStyles.boardContainer}>
-                    <div style={currentStyles.boardHeader}>
-                        <div style={currentStyles.badge}>
-                            <Zap size={16} style={{ color: '#667eea' }} />
-                            <span>Discover Local. Support Small.</span>
-                        </div>
+            {/* Full-Screen Floating Canvas */}
+            <section style={currentStyles.heroCanvas}>
+                <div style={currentStyles.canvasContainer}>
+                    <CenterTextWithContainer isDarkMode={isDarkMode} />
 
-                        <h1 style={currentStyles.boardTitle}>
-                            Discover & Support<br />
-                            <span style={currentStyles.heroGradient}>Local Businesses</span>
-                        </h1>
-
-                        <p style={currentStyles.boardSubtitle}>
-                            Explore amazing small businesses in your community
-                        </p>
-                    </div>
-
-                    <div style={currentStyles.boardCanvas}>
-                        {businesses.map(business => (
-                            <DraggableBusinessCard
-                                key={business.id}
-                                business={business}
-                                onDragStart={handleDragStart}
-                                onDragEnd={handleDragEnd}
-                                isHovered={hoveredId === business.id}
-                                onHover={setHoveredId}
-                                isDarkMode={isDarkMode}
-                            />
-                        ))}
-                    </div>
+                    {businesses.map(business => (
+                        <FloatingBusinessCard
+                            key={business.id}
+                            business={business}
+                            allBusinesses={businesses}
+                            onPositionUpdate={handlePositionUpdate}
+                            onDragStart={handleDragStart}
+                            onDragEnd={handleDragEnd}
+                            isHovered={hoveredId === business.id}
+                            onHover={setHoveredId}
+                            isDarkMode={isDarkMode}
+                        />
+                    ))}
                 </div>
             </section>
 
-            {/* Stats Section */}
+            <div style={currentStyles.sectionDivider} />
+
+            {/* Stats Section with Progressive Highlighting */}
             <section
                 ref={statsRef}
                 style={{
@@ -606,14 +602,24 @@ const HomePage = () => {
                                 key={i}
                                 style={{
                                     ...currentStyles.statCard,
-                                    transitionDelay: `${i * 100}ms`
+                                    transitionDelay: `${i * 100}ms`,
+                                    transform: highlightedStatIndex === i ? 'scale(1.1) translateY(-10px)' : 'scale(1)',
+                                    boxShadow: highlightedStatIndex === i
+                                        ? '0 20px 60px rgba(255, 107, 53, 0.4)'
+                                        : '0 4px 15px rgba(0,0,0,0.05)',
+                                    border: highlightedStatIndex === i
+                                        ? '3px solid #ff6b35'
+                                        : (isDarkMode ? `2px solid ${darkColors.border}` : '2px solid #f0f0f0'),
+                                    transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'
                                 }}
                                 onClick={handleButtonClick}
                             >
                                 <div style={{
                                     ...currentStyles.statIcon,
                                     backgroundColor: pastelColors[i * 2],
-                                    color: '#1a1a1a'
+                                    color: '#1a1a1a',
+                                    transform: highlightedStatIndex === i ? 'rotate(360deg) scale(1.2)' : 'rotate(0deg) scale(1)',
+                                    transition: 'all 0.5s ease'
                                 }}>
                                     <stat.icon size={24} />
                                 </div>
@@ -624,6 +630,8 @@ const HomePage = () => {
                     </div>
                 </div>
             </section>
+
+            <div style={currentStyles.sectionDivider} />
 
             {/* Features Section */}
             <section
@@ -678,6 +686,8 @@ const HomePage = () => {
                 </div>
             </section>
 
+            <div style={currentStyles.sectionDivider} />
+
             {/* Categories Section */}
             <section
                 ref={categoriesRef}
@@ -731,6 +741,8 @@ const HomePage = () => {
                 </div>
             </section>
 
+            <div style={currentStyles.sectionDivider} />
+
             {/* CTA Section */}
             <section style={currentStyles.cta}>
                 <div style={currentStyles.container}>
@@ -761,16 +773,6 @@ const styles = {
         position: 'relative',
         transition: 'background-color 0.3s ease, color 0.3s ease'
     },
-    gradientOverlay: {
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        pointerEvents: 'none',
-        zIndex: 0,
-        transition: 'background 0.5s ease, opacity 0.3s ease'
-    },
     scrollProgress: {
         position: 'fixed',
         top: 0,
@@ -778,19 +780,16 @@ const styles = {
         height: '4px',
         zIndex: 1000,
         transition: 'width 0.1s ease',
-        boxShadow: '0 0 10px rgba(99, 102, 241, 0.5)'
+        boxShadow: '0 0 10px rgba(255, 107, 53, 0.5)'
     },
     nav: {
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
         backdropFilter: 'blur(20px)',
         backgroundColor: 'rgba(255, 255, 255, 0.9)',
-        borderBottom: '1px solid rgba(0,0,0,0.06)',
-        transition: 'all 0.3s ease'
+        transition: 'all 0.3s ease',
+        zIndex: 100
     },
     navContainer: {
-        maxWidth: '1280px',
+        maxWidth: '100%',
         margin: '0 auto',
         padding: '0 2rem',
         display: 'flex',
@@ -809,26 +808,10 @@ const styles = {
         transition: 'transform 0.2s'
     },
     logoText: {
-        background: 'linear-gradient(135deg, #667eea, #764ba2)',
+        background: 'linear-gradient(135deg, #ff6b35, #f7931e)',
         WebkitBackgroundClip: 'text',
         WebkitTextFillColor: 'transparent',
         backgroundClip: 'text'
-    },
-    navLinks: {
-        display: 'flex',
-        gap: '2rem',
-        alignItems: 'center',
-        position: 'relative',
-        zIndex: 1
-    },
-    navLink: {
-        color: '#1a1a1a',
-        textDecoration: 'none',
-        fontWeight: '500',
-        transition: 'all 0.2s',
-        cursor: 'pointer',
-        position: 'relative',
-        padding: '0.5rem 0'
     },
     navButtons: {
         display: 'flex',
@@ -852,7 +835,7 @@ const styles = {
     btnPrimary: {
         padding: '0.625rem 1.5rem',
         border: 'none',
-        background: 'linear-gradient(135deg, #667eea, #764ba2)',
+        background: 'linear-gradient(135deg, #ff6b35, #f7931e)',
         color: '#fff',
         borderRadius: '10px',
         fontWeight: '600',
@@ -860,69 +843,30 @@ const styles = {
         transition: 'all 0.3s ease',
         fontFamily: 'inherit',
         fontSize: '0.9rem',
-        boxShadow: '0 4px 15px rgba(99, 102, 241, 0.3)'
+        boxShadow: '0 4px 15px rgba(255, 107, 53, 0.3)'
     },
-    badge: {
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '0.5rem',
-        padding: '0.5rem 1rem',
-        backgroundColor: '#fff',
-        borderRadius: '50px',
-        fontSize: '0.875rem',
-        fontWeight: '600',
-        marginBottom: '1.5rem',
-        border: '2px solid #667eea',
-        transition: 'all 0.3s ease',
-        boxShadow: '0 4px 15px rgba(0,0,0,0.08)'
-    },
-    heroGradient: {
-        background: 'linear-gradient(135deg, #667eea, #764ba2)',
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
-        backgroundClip: 'text'
-    },
-    interactiveBoard: {
-        padding: '3rem 2rem 5rem',
+    heroCanvas: {
         position: 'relative',
-        zIndex: 1,
-        transition: 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1)'
-    },
-    boardContainer: {
-        maxWidth: '1400px',
-        margin: '0 auto'
-    },
-    boardHeader: {
-        textAlign: 'center',
-        marginBottom: '3rem',
-        padding: '2rem'
-    },
-    boardTitle: {
-        fontSize: '3.5rem',
-        fontWeight: '800',
-        marginBottom: '1rem',
-        color: '#1a1a1a',
-        lineHeight: '1.1',
-        transition: 'color 0.3s ease'
-    },
-    boardSubtitle: {
-        fontSize: '1.25rem',
-        color: '#666',
-        fontWeight: '500',
-        marginTop: '1rem',
-        transition: 'color 0.3s ease'
-    },
-    boardCanvas: {
-        position: 'relative',
-        minHeight: '600px',
+        width: '100%',
+        height: '100vh',
         backgroundColor: '#ffffff',
-        borderRadius: '24px',
-        border: '2px solid #e8e8e8',
-        boxShadow: '0 10px 40px rgba(0,0,0,0.08)',
-        overflow: 'hidden',
         backgroundImage: 'radial-gradient(circle, #e8e8e8 1px, transparent 1px)',
         backgroundSize: '30px 30px',
-        transition: 'all 0.3s ease'
+        transition: 'all 0.3s ease',
+        overflow: 'hidden',
+        marginTop: '5rem'
+    },
+    canvasContainer: {
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        pointerEvents: 'none'
+    },
+    sectionDivider: {
+        height: '2px',
+        background: 'linear-gradient(90deg, transparent, #e0e0e0, transparent)',
+        margin: '0 auto',
+        width: '80%'
     },
     stats: {
         padding: '5rem 2rem',
@@ -943,7 +887,6 @@ const styles = {
     statCard: {
         textAlign: 'center',
         padding: '2rem',
-        transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
         cursor: 'pointer',
         backgroundColor: '#fafafa',
         borderRadius: '16px',
@@ -958,8 +901,7 @@ const styles = {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        color: '#1a1a1a',
-        transition: 'transform 0.3s ease'
+        color: '#1a1a1a'
     },
     statValue: {
         fontSize: '2.5rem',
@@ -1040,7 +982,7 @@ const styles = {
         display: 'flex',
         alignItems: 'center',
         gap: '0.5rem',
-        color: '#667eea',
+        color: '#ff6b35',
         fontWeight: '600',
         background: 'none',
         border: 'none',
@@ -1110,7 +1052,7 @@ const styles = {
     },
     cta: {
         padding: '5rem 2rem',
-        background: 'linear-gradient(135deg, #667eea, #764ba2)',
+        background: 'linear-gradient(135deg, #ff6b35, #f7931e)',
         color: '#fff',
         position: 'relative',
         zIndex: 1
@@ -1145,7 +1087,7 @@ const styles = {
         gap: '0.5rem',
         padding: '1rem 2rem',
         background: '#fff',
-        color: '#667eea',
+        color: '#ff6b35',
         border: 'none',
         borderRadius: '12px',
         fontWeight: '700',
@@ -1166,38 +1108,19 @@ styleSheet.textContent = `
     to { opacity: 1; }
   }
   
-  nav a:hover {
-    color: #667eea;
-  }
-  
-  nav a::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 0;
-    height: 2px;
-    background: #667eea;
-    transition: width 0.3s ease;
-  }
-  
-  nav a:hover::after {
-    width: 100%;
-  }
-  
   button:hover {
     transform: translateY(-2px);
   }
   
   [style*="btnSecondary"]:hover {
-    border-color: #667eea;
-    color: #667eea;
+    border-color: #ff6b35;
+    color: #ff6b35;
   }
   
   [style*="btnPrimary"]:hover,
   [style*="ctaPrimary"]:hover {
     transform: scale(1.05);
-    box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
+    box-shadow: 0 8px 25px rgba(255, 107, 53, 0.4);
   }
 `;
 document.head.appendChild(styleSheet);
