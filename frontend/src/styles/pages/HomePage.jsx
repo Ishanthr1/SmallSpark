@@ -204,11 +204,13 @@ const CenterTextWithContainer = ({ isDarkMode }) => {
                 minWidth: '500px',
                 zIndex: 5,
                 pointerEvents: 'auto',
-                backgroundColor: isHovered ? (isDarkMode ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)') : 'transparent',
+                backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
                 borderRadius: '24px',
-                border: isHovered ? '3px solid #ff6b35' : '3px solid transparent',
-                boxShadow: isHovered ? '0 30px 80px rgba(255, 107, 53, 0.35)' : 'none',
-                backdropFilter: isHovered ? 'blur(10px)' : 'none',
+                border: isHovered ? '3px solid #ff6b35' : '3px solid rgba(255, 107, 53, 0.3)',
+                boxShadow: isHovered
+                    ? '0 30px 80px rgba(255, 107, 53, 0.35)'
+                    : '0 20px 50px rgba(255, 107, 53, 0.2)',
+                backdropFilter: 'blur(10px)',
                 transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'
             }}
             onMouseEnter={() => setIsHovered(true)}
@@ -854,7 +856,6 @@ const styles = {
         backgroundSize: '30px 30px',
         transition: 'all 0.3s ease',
         overflow: 'hidden',
-        marginTop: '5rem'
     },
     canvasContainer: {
         position: 'relative',
