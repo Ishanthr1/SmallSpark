@@ -10,7 +10,7 @@ import {
 
 // Lighter pastel colors
 const pastelColors = [
-    '#FFE5E5', '#FFE5CC', '#FFFFCC', '#E5FFCC', '#CCFFE5',
+    '#E5F2FF', '#CCE5FF', '#FFFFCC', '#E5FFCC', '#CCFFE5',
     '#CCFFFF', '#CCE5FF', '#E5CCFF', '#FFCCFF', '#FFCCE5'
 ];
 
@@ -32,14 +32,110 @@ const randomVelocity = () => ({
 // Create businesses with random starting positions and velocities
 const createFloatingBusinesses = () => {
     const businesses = [
-        { id: 1, name: "Bloom Café", category: "Food & Dining", rating: 4.8, image: "☕", color: pastelColors[0], deals: "20% off coffee", description: "Cozy café with artisan coffee and fresh pastries", location: "Downtown Plaza", phone: "(555) 123-4567", rotation: -3 },
-        { id: 2, name: "The Cut Studio", category: "Health & Beauty", rating: 4.9, image: "✂️", color: pastelColors[4], deals: "Free consultation", description: "Premium hair styling and beauty services", location: "Main Street", phone: "(555) 234-5678", rotation: 2 },
-        { id: 3, name: "Artisan Bakery", category: "Food & Dining", rating: 4.7, image: "🥐", color: pastelColors[1], deals: "Buy 2 get 1 free", description: "Fresh baked goods daily, family recipes", location: "Oak Avenue", phone: "(555) 345-6789", rotation: -2 },
-        { id: 4, name: "Zenith Fitness", category: "Fitness", rating: 4.8, image: "💪", color: pastelColors[5], deals: "First month free", description: "Modern gym with personal training", location: "Park District", phone: "(555) 456-7890", rotation: 1 },
-        { id: 5, name: "Vintage Threads", category: "Retail", rating: 4.6, image: "👗", color: pastelColors[8], deals: "30% off sale items", description: "Curated vintage clothing and accessories", location: "Arts Quarter", phone: "(555) 567-8901", rotation: -4 },
-        { id: 6, name: "Fix-It Pro", category: "Services", rating: 4.9, image: "🔧", color: pastelColors[2], deals: "Free estimate", description: "Professional home repair services", location: "Industrial Park", phone: "(555) 678-9012", rotation: 3 },
-        { id: 7, name: "Green Leaf", category: "Food & Dining", rating: 4.7, image: "🌿", color: pastelColors[3], deals: "Happy hour 3-6pm", description: "Farm-to-table organic restaurant", location: "Riverside", phone: "(555) 789-0123", rotation: -1 },
-        { id: 8, name: "Pixel Studio", category: "Services", rating: 4.8, image: "🎨", color: pastelColors[7], deals: "First project 15% off", description: "Creative design and branding studio", location: "Tech Hub", phone: "(555) 890-1234", rotation: 2 }
+        {
+            id: 1,
+            name: "Cupbop",
+            category: "Food & Dining",
+            rating: 4.5,
+            image: "https://images.unsplash.com/photo-1547592166-23ac45744acd?w=400&h=400&fit=crop",
+            color: pastelColors[0],
+            deals: "15% off first order",
+            description: "Korean BBQ in a cup with bold flavors",
+            location: "South Jordan, UT",
+            phone: "(801) 676-5155",
+            rotation: -3
+        },
+        {
+            id: 2,
+            name: "Sola Salon Studios",
+            category: "Health & Beauty",
+            rating: 4.7,
+            image: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=400&h=400&fit=crop",
+            color: pastelColors[4],
+            deals: "New client special",
+            description: "Premium independent salon studios",
+            location: "South Jordan, UT",
+            phone: "(801) 254-9800",
+            rotation: 2
+        },
+        {
+            id: 3,
+            name: "Waffle Love",
+            category: "Food & Dining",
+            rating: 4.6,
+            image: "https://images.unsplash.com/photo-1562376552-0d160a2f238d?w=400&h=400&fit=crop",
+            color: pastelColors[1],
+            deals: "Buy 2 get 1 free",
+            description: "Liege waffles with unique toppings",
+            location: "South Jordan, UT",
+            phone: "(801) 747-9177",
+            rotation: -2
+        },
+        {
+            id: 4,
+            name: "Vasa Fitness",
+            category: "Fitness",
+            rating: 4.3,
+            image: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&h=400&fit=crop",
+            color: pastelColors[5],
+            deals: "First month free",
+            description: "Full-service gym with modern equipment",
+            location: "South Jordan, UT",
+            phone: "(801) 304-3400",
+            rotation: 1
+        },
+        {
+            id: 5,
+            name: "Scheels",
+            category: "Retail",
+            rating: 4.8,
+            image: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&h=400&fit=crop",
+            color: pastelColors[8],
+            deals: "Seasonal promotions",
+            description: "Sports, outdoors, and lifestyle retailer",
+            location: "South Jordan, UT",
+            phone: "(801) 572-7600",
+            rotation: -4
+        },
+        {
+            id: 6,
+            name: "Jiffy Lube",
+            category: "Services",
+            rating: 4.4,
+            image: "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=400&h=400&fit=crop",
+            color: pastelColors[2],
+            deals: "$10 off oil change",
+            description: "Quick oil changes and maintenance",
+            location: "South Jordan, UT",
+            phone: "(801) 253-9200",
+            rotation: 3
+        },
+        {
+            id: 7,
+            name: "Costa Vida",
+            category: "Food & Dining",
+            rating: 4.4,
+            image: "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&h=400&fit=crop",
+            color: pastelColors[3],
+            deals: "Taco Tuesday specials",
+            description: "Fresh Mexican grill with homemade tortillas",
+            location: "South Jordan, UT",
+            phone: "(801) 676-9200",
+            rotation: -1
+        },
+        {
+            id: 8,
+            name: "Color Me Mine",
+            category: "Arts & Entertainment",
+            rating: 4.6,
+            image: "https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=400&h=400&fit=crop",
+            color: pastelColors[7],
+            deals: "Birthday party packages",
+            description: "Paint-your-own pottery studio",
+            location: "South Jordan, UT",
+            phone: "(801) 566-1406",
+            rotation: 2
+        }
     ];
 
     return businesses.map(business => ({
@@ -54,14 +150,14 @@ const createFloatingBusinesses = () => {
 };
 
 const categories = [
-    { name: 'Food & Dining', icon: Store, count: '1,234', color: '#FF6B6B' },
-    { name: 'Retail & Shopping', icon: Store, count: '856', color: '#4ECDC4' },
-    { name: 'Health & Beauty', icon: Heart, count: '642', color: '#FFE66D' },
-    { name: 'Professional Services', icon: Award, count: '523', color: '#95E1D3' },
-    { name: 'Arts & Crafts', icon: Palette, count: '398', color: '#F38181' },
-    { name: 'Home Services', icon: MapPin, count: '467', color: '#AA96DA' },
-    { name: 'Entertainment', icon: Music, count: '289', color: '#FCBAD3' },
-    { name: 'Fitness & Wellness', icon: Users, count: '356', color: '#A8D8EA' }
+    { name: 'Food & Dining', icon: Store, count: '1,234', color: '#3b82f6' },
+    { name: 'Retail & Shopping', icon: Store, count: '856', color: '#60a5fa' },
+    { name: 'Health & Beauty', icon: Heart, count: '642', color: '#93c5fd' },
+    { name: 'Professional Services', icon: Award, count: '523', color: '#2563eb' },
+    { name: 'Arts & Crafts', icon: Palette, count: '398', color: '#1d4ed8' },
+    { name: 'Home Services', icon: MapPin, count: '467', color: '#1e40af' },
+    { name: 'Entertainment', icon: Music, count: '289', color: '#3b82f6' },
+    { name: 'Fitness & Wellness', icon: Users, count: '356', color: '#60a5fa' }
 ];
 
 const stats = [
@@ -176,11 +272,38 @@ const FloatingBusinessCard = ({ business, allBusinesses, onPositionUpdate, onDra
                 boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
             }} />
             <div style={{ position: 'relative' }}>
-                <div style={{ fontSize: '3rem', marginBottom: '0.75rem', textAlign: 'center' }}>{business.image}</div>
+                <div style={{
+                    width: '100%',
+                    height: '80px',
+                    marginBottom: '0.75rem',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                }}>
+                    <img
+                        src={business.image}
+                        alt={business.name}
+                        style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover'
+                        }}
+                    />
+                </div>
                 <h3 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '0.5rem', color: '#1a1a1a', textAlign: 'center' }}>{business.name}</h3>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem', color: '#1a1a1a' }}>
-                    <Star size={16} fill="#FFB800" color="#FFB800" />
-                    <span>{business.rating}</span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.15rem', fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.25rem', color: '#1a1a1a' }}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                        <Star
+                            key={star}
+                            size={14}
+                            fill={star <= Math.floor(business.rating) ? "#FFB800" : (star - 0.5 <= business.rating ? "#FFB800" : "none")}
+                            color="#FFB800"
+                            style={{ opacity: star <= Math.floor(business.rating) ? 1 : (star - 0.5 <= business.rating ? 0.5 : 0.3) }}
+                        />
+                    ))}
+                    <span style={{ marginLeft: '0.25rem' }}>({business.rating})</span>
                 </div>
                 <p style={{ textAlign: 'center', fontSize: '0.875rem', color: '#666', marginBottom: '0.75rem' }}>{business.category}</p>
             </div>
@@ -206,10 +329,10 @@ const CenterTextWithContainer = ({ isDarkMode }) => {
                 pointerEvents: 'auto',
                 backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
                 borderRadius: '24px',
-                border: isHovered ? '3px solid #ff6b35' : '3px solid rgba(255, 107, 53, 0.3)',
+                border: isHovered ? '3px solid #3b82f6' : '3px solid rgba(59, 130, 246, 0.3)',
                 boxShadow: isHovered
-                    ? '0 30px 80px rgba(255, 107, 53, 0.35)'
-                    : '0 20px 50px rgba(255, 107, 53, 0.2)',
+                    ? '0 30px 80px rgba(59, 130, 246, 0.35)'
+                    : '0 20px 50px rgba(59, 130, 246, 0.2)',
                 backdropFilter: 'blur(10px)',
                 transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'
             }}
@@ -226,12 +349,12 @@ const CenterTextWithContainer = ({ isDarkMode }) => {
                 fontSize: '0.875rem',
                 fontWeight: '600',
                 marginBottom: '1.5rem',
-                border: '2px solid #ff6b35',
-                boxShadow: '0 4px 15px rgba(255, 107, 53, 0.3)',
+                border: '2px solid #3b82f6',
+                boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)',
                 transition: 'all 0.3s ease',
                 transform: isHovered ? 'scale(1.05)' : 'scale(1)'
             }}>
-                <Zap size={16} style={{ color: '#ff6b35' }} />
+                <Zap size={16} style={{ color: '#3b82f6' }} />
                 <span style={{ color: isDarkMode ? '#f1f5f9' : '#1a1a1a' }}>Discover Local. Support Small.</span>
             </div>
 
@@ -244,7 +367,7 @@ const CenterTextWithContainer = ({ isDarkMode }) => {
             }}>
                 Discover & Support<br />
                 <span style={{
-                    background: 'linear-gradient(135deg, #ff6b35, #f7931e)',
+                    background: 'linear-gradient(135deg, #3b82f6, #60a5fa)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text'
@@ -269,7 +392,7 @@ const HomePage = () => {
     const navigate = useNavigate();
     const { isSignedIn, user } = useUser();
 
-    const [isDarkMode, setIsDarkMode] = useState(false);
+    const [isDarkMode, setIsDarkMode] = useState(true);
     const [businesses, setBusinesses] = useState(createFloatingBusinesses());
     const [draggingId, setDraggingId] = useState(null);
     const [hoveredId, setHoveredId] = useState(null);
@@ -520,7 +643,7 @@ const HomePage = () => {
             <div style={{
                 ...currentStyles.scrollProgress,
                 width: `${scrollProgress}%`,
-                background: 'linear-gradient(90deg, #ff6b35, #f7931e)'
+                background: 'linear-gradient(90deg, #3b82f6, #60a5fa)'
             }} />
 
             {/* Floating Navigation */}
@@ -538,7 +661,7 @@ const HomePage = () => {
             }}>
                 <div style={currentStyles.navContainer}>
                     <div style={currentStyles.logo}>
-                        <Sparkles size={28} style={{ color: '#ff6b35' }} />
+                        <Sparkles size={28} style={{ color: '#3b82f6' }} />
                         <span style={currentStyles.logoText}>SmallSpark</span>
                     </div>
 
@@ -607,10 +730,10 @@ const HomePage = () => {
                                     transitionDelay: `${i * 100}ms`,
                                     transform: highlightedStatIndex === i ? 'scale(1.1) translateY(-10px)' : 'scale(1)',
                                     boxShadow: highlightedStatIndex === i
-                                        ? '0 20px 60px rgba(255, 107, 53, 0.4)'
+                                        ? '0 20px 60px rgba(59, 130, 246, 0.4)'
                                         : '0 4px 15px rgba(0,0,0,0.05)',
                                     border: highlightedStatIndex === i
-                                        ? '3px solid #ff6b35'
+                                        ? '3px solid #3b82f6'
                                         : (isDarkMode ? `2px solid ${darkColors.border}` : '2px solid #f0f0f0'),
                                     transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'
                                 }}
@@ -782,7 +905,7 @@ const styles = {
         height: '4px',
         zIndex: 1000,
         transition: 'width 0.1s ease',
-        boxShadow: '0 0 10px rgba(255, 107, 53, 0.5)'
+        boxShadow: '0 0 10px rgba(59, 130, 246, 0.5)'
     },
     nav: {
         backdropFilter: 'blur(20px)',
@@ -810,7 +933,7 @@ const styles = {
         transition: 'transform 0.2s'
     },
     logoText: {
-        background: 'linear-gradient(135deg, #ff6b35, #f7931e)',
+        background: 'linear-gradient(135deg, #3b82f6, #60a5fa)',
         WebkitBackgroundClip: 'text',
         WebkitTextFillColor: 'transparent',
         backgroundClip: 'text'
@@ -837,7 +960,7 @@ const styles = {
     btnPrimary: {
         padding: '0.625rem 1.5rem',
         border: 'none',
-        background: 'linear-gradient(135deg, #ff6b35, #f7931e)',
+        background: 'linear-gradient(135deg, #3b82f6, #60a5fa)',
         color: '#fff',
         borderRadius: '10px',
         fontWeight: '600',
@@ -845,7 +968,7 @@ const styles = {
         transition: 'all 0.3s ease',
         fontFamily: 'inherit',
         fontSize: '0.9rem',
-        boxShadow: '0 4px 15px rgba(255, 107, 53, 0.3)'
+        boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)'
     },
     heroCanvas: {
         position: 'relative',
@@ -983,7 +1106,7 @@ const styles = {
         display: 'flex',
         alignItems: 'center',
         gap: '0.5rem',
-        color: '#ff6b35',
+        color: '#3b82f6',
         fontWeight: '600',
         background: 'none',
         border: 'none',
@@ -1053,7 +1176,8 @@ const styles = {
     },
     cta: {
         padding: '5rem 2rem',
-        background: 'linear-gradient(135deg, #ff6b35, #f7931e)',
+        background: 'url("/path/to/your/image.png") center center / cover no-repeat',
+        backgroundColor: '#0a1628',
         color: '#fff',
         position: 'relative',
         zIndex: 1
@@ -1088,7 +1212,7 @@ const styles = {
         gap: '0.5rem',
         padding: '1rem 2rem',
         background: '#fff',
-        color: '#ff6b35',
+        color: '#3b82f6',
         border: 'none',
         borderRadius: '12px',
         fontWeight: '700',
@@ -1114,14 +1238,14 @@ styleSheet.textContent = `
   }
   
   [style*="btnSecondary"]:hover {
-    border-color: #ff6b35;
-    color: #ff6b35;
+    border-color: #3b82f6;
+    color: #3b82f6;
   }
   
   [style*="btnPrimary"]:hover,
   [style*="ctaPrimary"]:hover {
     transform: scale(1.05);
-    box-shadow: 0 8px 25px rgba(255, 107, 53, 0.4);
+    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
   }
 `;
 document.head.appendChild(styleSheet);
