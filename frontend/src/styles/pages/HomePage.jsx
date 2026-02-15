@@ -1,686 +1,531 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { SignInButton, SignUpButton, UserButton, useUser } from '@clerk/clerk-react';
+import React, {useState, useEffect, useRef, useCallback} from 'react';
+import {useNavigate} from 'react-router-dom';
+import {SignInButton, SignUpButton, UserButton, useUser} from '@clerk/clerk-react';
 import {
     Search, MapPin, Star, Heart, TrendingUp, Sparkles, X, Check,
     Store, Users, Award, Zap, Filter, ChevronRight, ArrowRight,
     Globe, Shield, Clock, Coffee, Scissors, Utensils, Dumbbell,
-    ShoppingBag, Wrench, Palette, Music, Phone, Mail, Moon, Sun
+    ShoppingBag, Wrench, Palette, Music, Phone, Mail, Moon, Sun,
+    ChevronLeft, Languages
 } from 'lucide-react';
+import InteractiveGlobe from './InteractiveGlobe.jsx';
 
-// Lighter pastel colors
-const pastelColors = [
-    '#E5F2FF', '#CCE5FF', '#FFFFCC', '#E5FFCC', '#CCFFE5',
-    '#CCFFFF', '#CCE5FF', '#E5CCFF', '#FFCCFF', '#FFCCE5'
-];
-
-// Dark mode colors
-const darkColors = {
-    background: '#0f172a',
-    cardBg: '#1e293b',
-    text: '#f1f5f9',
-    textSecondary: '#94a3b8',
-    border: '#334155'
+// ─── Theme Colors ─────────────────────────────────────────────
+const lightTheme = {
+    bg: '#ffffff',
+    bgAlt: '#fafafa',
+    text: '#1a1a1a',
+    textSecondary: '#555555',
+    textMuted: '#999999',
+    border: '#ebebeb',
+    cardBg: '#ffffff',
+    cardBgAlt: '#f7f7f7',
+    accent: '#1a1a1a',
+    accentText: '#ffffff',
+    navBg: 'rgba(255,255,255,0.92)',
+    footerBg: '#0a0a0a',
+    footerText: '#ffffff',
+    footerTextSecondary: '#888888',
+    tintBlue: '#f0f4ff',
+    tintGreen: '#f0faf4',
+    tintAmber: '#fffbf0',
+    tintRose: '#fff0f3',
+    tintPurple: '#f5f0ff',
+    tintCyan: '#f0fbff',
+    borderTintBlue: '#dce5f5',
+    borderTintGreen: '#d4eddc',
+    borderTintAmber: '#f0e6cc',
+    borderTintRose: '#f5d5dc',
+    borderTintPurple: '#e2d5f5',
+    borderTintCyan: '#d0ecf5',
 };
 
-// Generate random velocity for floating
-const randomVelocity = () => ({
-    x: (Math.random() - 0.5) * 0.8,
-    y: (Math.random() - 0.5) * 0.8
-});
-
-// Create businesses with random starting positions and velocities
-const createFloatingBusinesses = () => {
-    const businesses = [
-        {
-            id: 1,
-            name: "Cupbop",
-            category: "Food & Dining",
-            rating: 4.5,
-            image: "https://images.unsplash.com/photo-1547592166-23ac45744acd?w=400&h=400&fit=crop",
-            color: pastelColors[0],
-            deals: "15% off first order",
-            description: "Korean BBQ in a cup with bold flavors",
-            location: "South Jordan, UT",
-            phone: "(801) 676-5155",
-            rotation: -3
-        },
-        {
-            id: 2,
-            name: "Sola Salon Studios",
-            category: "Health & Beauty",
-            rating: 4.7,
-            image: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=400&h=400&fit=crop",
-            color: pastelColors[4],
-            deals: "New client special",
-            description: "Premium independent salon studios",
-            location: "South Jordan, UT",
-            phone: "(801) 254-9800",
-            rotation: 2
-        },
-        {
-            id: 3,
-            name: "Waffle Love",
-            category: "Food & Dining",
-            rating: 4.6,
-            image: "https://images.unsplash.com/photo-1562376552-0d160a2f238d?w=400&h=400&fit=crop",
-            color: pastelColors[1],
-            deals: "Buy 2 get 1 free",
-            description: "Liege waffles with unique toppings",
-            location: "South Jordan, UT",
-            phone: "(801) 747-9177",
-            rotation: -2
-        },
-        {
-            id: 4,
-            name: "Vasa Fitness",
-            category: "Fitness",
-            rating: 4.3,
-            image: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&h=400&fit=crop",
-            color: pastelColors[5],
-            deals: "First month free",
-            description: "Full-service gym with modern equipment",
-            location: "South Jordan, UT",
-            phone: "(801) 304-3400",
-            rotation: 1
-        },
-        {
-            id: 5,
-            name: "Scheels",
-            category: "Retail",
-            rating: 4.8,
-            image: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&h=400&fit=crop",
-            color: pastelColors[8],
-            deals: "Seasonal promotions",
-            description: "Sports, outdoors, and lifestyle retailer",
-            location: "South Jordan, UT",
-            phone: "(801) 572-7600",
-            rotation: -4
-        },
-        {
-            id: 6,
-            name: "Jiffy Lube",
-            category: "Services",
-            rating: 4.4,
-            image: "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=400&h=400&fit=crop",
-            color: pastelColors[2],
-            deals: "$10 off oil change",
-            description: "Quick oil changes and maintenance",
-            location: "South Jordan, UT",
-            phone: "(801) 253-9200",
-            rotation: 3
-        },
-        {
-            id: 7,
-            name: "Costa Vida",
-            category: "Food & Dining",
-            rating: 4.4,
-            image: "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=400&h=400&fit=crop",
-            color: pastelColors[3],
-            deals: "Taco Tuesday specials",
-            description: "Fresh Mexican grill with homemade tortillas",
-            location: "South Jordan, UT",
-            phone: "(801) 676-9200",
-            rotation: -1
-        },
-        {
-            id: 8,
-            name: "Color Me Mine",
-            category: "Arts & Entertainment",
-            rating: 4.6,
-            image: "https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=400&h=400&fit=crop",
-            color: pastelColors[7],
-            deals: "Birthday party packages",
-            description: "Paint-your-own pottery studio",
-            location: "South Jordan, UT",
-            phone: "(801) 566-1406",
-            rotation: 2
-        }
-    ];
-
-    return businesses.map(business => ({
-        ...business,
-        position: {
-            x: Math.random() * (window.innerWidth - 250),
-            y: Math.random() * (window.innerHeight - 250)
-        },
-        velocity: randomVelocity(),
-        isDragging: false
-    }));
+const darkTheme = {
+    bg: '#0a0a0a',
+    bgAlt: '#111111',
+    text: '#f0f0f0',
+    textSecondary: '#aaaaaa',
+    textMuted: '#666666',
+    border: '#222222',
+    cardBg: '#141414',
+    cardBgAlt: '#111111',
+    accent: '#f0f0f0',
+    accentText: '#0a0a0a',
+    navBg: 'rgba(10,10,10,0.92)',
+    footerBg: '#050505',
+    footerText: '#f0f0f0',
+    footerTextSecondary: '#777777',
+    tintBlue: '#0d1520',
+    tintGreen: '#0d1a12',
+    tintAmber: '#1a1508',
+    tintRose: '#1a0d10',
+    tintPurple: '#130d1a',
+    tintCyan: '#0d171a',
+    borderTintBlue: '#1a2535',
+    borderTintGreen: '#1a2e22',
+    borderTintAmber: '#2e2515',
+    borderTintRose: '#2e1a20',
+    borderTintPurple: '#221a2e',
+    borderTintCyan: '#1a2a2e',
 };
 
+// ─── Data ─────────────────────────────────────────────────────
 const categories = [
-    { name: 'Food & Dining', icon: Store, count: '1,234', color: '#3b82f6' },
-    { name: 'Retail & Shopping', icon: Store, count: '856', color: '#60a5fa' },
-    { name: 'Health & Beauty', icon: Heart, count: '642', color: '#93c5fd' },
-    { name: 'Professional Services', icon: Award, count: '523', color: '#2563eb' },
-    { name: 'Arts & Crafts', icon: Palette, count: '398', color: '#1d4ed8' },
-    { name: 'Home Services', icon: MapPin, count: '467', color: '#1e40af' },
-    { name: 'Entertainment', icon: Music, count: '289', color: '#3b82f6' },
-    { name: 'Fitness & Wellness', icon: Users, count: '356', color: '#60a5fa' }
+    {name: 'Food & Dining', icon: Utensils, count: '1,234', description: 'Restaurants, cafes, and food trucks'},
+    {name: 'Retail & Shopping', icon: ShoppingBag, count: '856', description: 'Local shops and boutiques'},
+    {name: 'Health & Beauty', icon: Heart, count: '642', description: 'Salons, spas, and wellness'},
+    {name: 'Professional Services', icon: Award, count: '523', description: 'Business and consulting'},
+    {name: 'Arts & Crafts', icon: Palette, count: '398', description: 'Creative studios and galleries'},
+    {name: 'Home Services', icon: Wrench, count: '467', description: 'Repair and maintenance'},
+    {name: 'Entertainment', icon: Music, count: '289', description: 'Events and activities'},
+    {name: 'Fitness & Wellness', icon: Dumbbell, count: '356', description: 'Gyms and fitness centers'}
 ];
 
-const stats = [
-    { value: '10,000+', label: 'Local Businesses', icon: Store },
-    { value: '50,000+', label: 'Active Users', icon: Users },
-    { value: '100,000+', label: 'Reviews Posted', icon: Star },
-    { value: '5,000+', label: 'Active Deals', icon: Award }
+const features = [
+    {icon: MapPin, title: 'Interactive Maps', text: 'Explore businesses with our interactive map feature powered by real-time location data.', tint: 'Blue'},
+    {icon: Star, title: 'Verified Reviews', text: 'Read authentic reviews from real customers who have experienced the businesses firsthand.', tint: 'Amber'},
+    {icon: Heart, title: 'Save Favorites', text: 'Bookmark your favorite businesses and create custom collections for easy access.', tint: 'Rose'},
+    {icon: TrendingUp, title: 'Exclusive Deals', text: 'Access special offers and time-limited deals exclusive to Spark members.', tint: 'Green'},
+    {icon: Globe, title: 'Nationwide Coverage', text: 'Discover small businesses across the country, from your hometown to new destinations.', tint: 'Purple'},
+    {icon: Shield, title: 'Verified Businesses', text: 'All businesses are verified and vetted to ensure quality and authenticity.', tint: 'Cyan'}
 ];
 
-// Custom Dark Mode Toggle Component
-const DarkModeToggle = ({ isDark, onToggle }) => {
-    return (
-        <button
-            onClick={onToggle}
-            style={{
-                background: 'transparent',
-                border: '2px solid #e0e0e0',
-                borderRadius: '50%',
-                width: '40px',
-                height: '40px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                color: isDark ? '#f1f5f9' : '#1a1a1a'
-            }}
-            aria-label="Toggle dark mode"
-        >
-            {isDark ? <Sun size={20} /> : <Moon size={20} />}
-        </button>
-    );
-};
+const reviews = [
+    {quote: "Spark helped me find the best local coffee shop I never knew existed. The reviews were spot-on and the deals saved me money every week.", name: "Jordan Kim", role: "Regular User", rating: 5},
+    {quote: "As a small business owner, Spark brought in so many new customers. The platform is easy to use and the verification process builds real trust.", name: "Melissa Grant", role: "Business Owner", rating: 5},
+    {quote: "I use Spark every time I travel to find authentic local spots. It's like having a friend in every city who knows all the hidden gems.", name: "Alex Johnson", role: "Frequent Traveler", rating: 5},
+    {quote: "The category filtering and smart recommendations are incredible. Spark understands what I'm looking for before I even finish typing.", name: "Priya Patel", role: "Food Enthusiast", rating: 5},
+    {quote: "Our family uses Spark to support local businesses every weekend. It's become part of our routine to discover something new together.", name: "David Chen", role: "Community Member", rating: 5}
+];
 
-// Floating Business Card Component with Repulsion
-const FloatingBusinessCard = ({ business, allBusinesses, onPositionUpdate, onDragStart, onDragEnd, isHovered, onHover, isDarkMode }) => {
-    const [isDragging, setIsDragging] = useState(false);
-    const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-    const cardRef = useRef(null);
+const typingPhrases = [
+    "Connect with authentic local businesses, discover exclusive deals, and support your community — all in one place.",
+    "Find hidden gems in your neighborhood, read real reviews, and save your favorite spots for later.",
+    "Support small businesses that make your community unique — explore deals, ratings, and more.",
+    "Your go-to platform for discovering local shops, restaurants, and services you'll love."
+];
 
-    const handleMouseDown = (e) => {
-        if (e.target.closest('button') || e.target.closest('a')) return;
+const tintColors = ['Blue', 'Green', 'Amber', 'Rose', 'Purple', 'Cyan', 'Blue', 'Green'];
 
-        const rect = cardRef.current.getBoundingClientRect();
-        setDragOffset({
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top
-        });
-        setIsDragging(true);
-        onDragStart(business.id);
-        e.preventDefault();
-    };
+// ─── Typing Animation Hook ───────────────────────────────────
+const useTypingAnimation = (phrases, typingSpeed = 35, deletingSpeed = 20, pauseDuration = 2500) => {
+    const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0);
+    const [displayText, setDisplayText] = useState('');
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
-        if (!isDragging) return;
+        const currentPhrase = phrases[currentPhraseIndex];
+        let timeout;
+        if (!isDeleting) {
+            if (displayText.length < currentPhrase.length) {
+                timeout = setTimeout(() => setDisplayText(currentPhrase.slice(0, displayText.length + 1)), typingSpeed);
+            } else {
+                timeout = setTimeout(() => setIsDeleting(true), pauseDuration);
+            }
+        } else {
+            if (displayText.length > 0) {
+                timeout = setTimeout(() => setDisplayText(displayText.slice(0, -1)), deletingSpeed);
+            } else {
+                setIsDeleting(false);
+                setCurrentPhraseIndex((prev) => (prev + 1) % phrases.length);
+            }
+        }
+        return () => clearTimeout(timeout);
+    }, [displayText, isDeleting, currentPhraseIndex, phrases, typingSpeed, deletingSpeed, pauseDuration]);
 
-        const handleMouseMove = (e) => {
-            const newX = e.clientX - dragOffset.x;
-            const newY = e.clientY - dragOffset.y;
-            onPositionUpdate(business.id, { x: newX, y: newY }, true);
-        };
-
-        const handleMouseUp = () => {
-            setIsDragging(false);
-            onDragEnd(business.id);
-        };
-
-        window.addEventListener('mousemove', handleMouseMove);
-        window.addEventListener('mouseup', handleMouseUp);
-
-        return () => {
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleMouseUp);
-        };
-    }, [isDragging, dragOffset, business.id, onPositionUpdate, onDragEnd]);
-
-    return (
-        <div
-            ref={cardRef}
-            style={{
-                position: 'absolute',
-                left: `${business.position.x}px`,
-                top: `${business.position.y}px`,
-                transform: `rotate(${business.rotation}deg)`,
-                padding: '1.5rem',
-                borderRadius: '12px',
-                transition: isDragging ? 'none' : 'transform 0.2s ease',
-                userSelect: 'none',
-                fontFamily: "'Patrick Hand', cursive, 'Poppins', sans-serif",
-                border: '2px solid rgba(0,0,0,0.08)',
-                backgroundColor: business.color,
-                zIndex: isDragging ? 1000 : (isHovered ? 100 : 1),
-                cursor: isDragging ? 'grabbing' : 'grab',
-                width: '200px',
-                height: '220px',
-                boxShadow: isDragging ? '0 15px 40px rgba(0,0,0,0.2)' : '0 8px 20px rgba(0,0,0,0.12)',
-                pointerEvents: 'auto'
-            }}
-            onMouseDown={handleMouseDown}
-            onMouseEnter={() => !isDragging && onHover(business.id)}
-            onMouseLeave={() => !isDragging && onHover(null)}
-        >
-            <div style={{
-                position: 'absolute',
-                top: '10px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                width: '12px',
-                height: '12px',
-                borderRadius: '50%',
-                backgroundColor: 'rgba(0,0,0,0.2)',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-            }} />
-            <div style={{ position: 'relative' }}>
-                <div style={{
-                    width: '100%',
-                    height: '80px',
-                    marginBottom: '0.75rem',
-                    borderRadius: '8px',
-                    overflow: 'hidden',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                }}>
-                    <img
-                        src={business.image}
-                        alt={business.name}
-                        style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover'
-                        }}
-                    />
-                </div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '0.5rem', color: '#1a1a1a', textAlign: 'center' }}>{business.name}</h3>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.15rem', fontSize: '0.9rem', fontWeight: '600', marginBottom: '0.25rem', color: '#1a1a1a' }}>
-                    {[1, 2, 3, 4, 5].map((star) => (
-                        <Star
-                            key={star}
-                            size={14}
-                            fill={star <= Math.floor(business.rating) ? "#FFB800" : (star - 0.5 <= business.rating ? "#FFB800" : "none")}
-                            color="#FFB800"
-                            style={{ opacity: star <= Math.floor(business.rating) ? 1 : (star - 0.5 <= business.rating ? 0.5 : 0.3) }}
-                        />
-                    ))}
-                    <span style={{ marginLeft: '0.25rem' }}>({business.rating})</span>
-                </div>
-                <p style={{ textAlign: 'center', fontSize: '0.875rem', color: '#666', marginBottom: '0.75rem' }}>{business.category}</p>
-            </div>
-        </div>
-    );
+    return displayText;
 };
 
-// Center Text with Hoverable Container
-const CenterTextWithContainer = ({ isDarkMode }) => {
-    const [isHovered, setIsHovered] = useState(false);
+// ─── Infinite Carousel ────────────────────────────────────────
+const InfiniteCarousel = ({items, renderCard, speed = 30, cardWidth = 320, gap = 20, reverse = false}) => {
+    const trackRef = useRef(null);
+    const offsetRef = useRef(0);
+    const animRef = useRef(null);
+    const lastTimeRef = useRef(null);
 
-    return (
-        <div
-            style={{
-                position: 'absolute',
-                left: '50%',
-                top: '50%',
-                transform: 'translate(-50%, -50%)',
-                padding: '3rem 4rem',
-                textAlign: 'center',
-                minWidth: '500px',
-                zIndex: 5,
-                pointerEvents: 'auto',
-                backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-                borderRadius: '24px',
-                border: isHovered ? '3px solid #3b82f6' : '3px solid rgba(59, 130, 246, 0.3)',
-                boxShadow: isHovered
-                    ? '0 30px 80px rgba(59, 130, 246, 0.35)'
-                    : '0 20px 50px rgba(59, 130, 246, 0.2)',
-                backdropFilter: 'blur(10px)',
-                transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'
-            }}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-        >
-            <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.5rem 1rem',
-                backgroundColor: isDarkMode ? 'rgba(100, 116, 139, 0.5)' : 'rgba(255, 255, 255, 0.8)',
-                borderRadius: '50px',
-                fontSize: '0.875rem',
-                fontWeight: '600',
-                marginBottom: '1.5rem',
-                border: '2px solid #3b82f6',
-                boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)',
-                transition: 'all 0.3s ease',
-                transform: isHovered ? 'scale(1.05)' : 'scale(1)'
-            }}>
-                <Zap size={16} style={{ color: '#3b82f6' }} />
-                <span style={{ color: isDarkMode ? '#f1f5f9' : '#1a1a1a' }}>Discover Local. Support Small.</span>
-            </div>
+    const tripled = [...items, ...items, ...items];
+    const singleSetWidth = items.length * (cardWidth + gap);
 
-            <h1 style={{
-                fontSize: '3.5rem',
-                fontWeight: '800',
-                marginBottom: '1rem',
-                color: isDarkMode ? '#f1f5f9' : '#1a1a1a',
-                lineHeight: '1.1'
-            }}>
-                Discover & Support<br />
-                <span style={{
-                    background: 'linear-gradient(135deg, #3b82f6, #60a5fa)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text'
-                }}>
-                    Local Businesses
-                </span>
-            </h1>
-
-            <p style={{
-                fontSize: '1.25rem',
-                color: isDarkMode ? '#94a3b8' : '#666',
-                fontWeight: '500',
-                marginTop: '1rem'
-            }}>
-                Drag and explore amazing businesses
-            </p>
-        </div>
-    );
-};
-
-const HomePage = () => {
-    const navigate = useNavigate();
-    const { isSignedIn, user } = useUser();
-
-    const [isDarkMode, setIsDarkMode] = useState(true);
-    const [businesses, setBusinesses] = useState(createFloatingBusinesses());
-    const [draggingId, setDraggingId] = useState(null);
-    const [hoveredId, setHoveredId] = useState(null);
-
-    // Stats highlighting state - simplified
-    const [highlightedStatIndex, setHighlightedStatIndex] = useState(-1);
-    const [isInStatsSection, setIsInStatsSection] = useState(false);
-    const lastScrollY = useRef(0);
-    const scrollAccumulator = useRef(0);
-
-    const [scrollProgress, setScrollProgress] = useState(0);
-    const [visibleSections, setVisibleSections] = useState(new Set());
-
-    const statsRef = useRef(null);
-    const featuresRef = useRef(null);
-    const categoriesRef = useRef(null);
-
-    // Floating animation with repulsion
     useEffect(() => {
-        let animationId;
+        const animate = (timestamp) => {
+            if (!lastTimeRef.current) lastTimeRef.current = timestamp;
+            const delta = timestamp - lastTimeRef.current;
+            lastTimeRef.current = timestamp;
 
-        const animate = () => {
-            setBusinesses(prev => prev.map((business, index) => {
-                if (business.id === draggingId) return business;
-
-                let newX = business.position.x + business.velocity.x;
-                let newY = business.position.y + business.velocity.y;
-                let newVelocityX = business.velocity.x;
-                let newVelocityY = business.velocity.y;
-
-                // Repulsion from other businesses
-                prev.forEach((other, otherIndex) => {
-                    if (index === otherIndex) return;
-
-                    const dx = business.position.x - other.position.x;
-                    const dy = business.position.y - other.position.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-
-                    // Only repel if too close
-                    if (distance < 250 && distance > 0) {
-                        const force = (250 - distance) / 250 * 0.3;
-                        newVelocityX += (dx / distance) * force;
-                        newVelocityY += (dy / distance) * force;
-                    }
-                });
-
-                // Limit velocity
-                const speed = Math.sqrt(newVelocityX * newVelocityX + newVelocityY * newVelocityY);
-                if (speed > 1.5) {
-                    newVelocityX = (newVelocityX / speed) * 1.5;
-                    newVelocityY = (newVelocityY / speed) * 1.5;
-                }
-
-                // Wrap around screen edges
-                if (newX < -250) newX = window.innerWidth;
-                if (newX > window.innerWidth) newX = -250;
-                if (newY < -250) newY = window.innerHeight;
-                if (newY > window.innerHeight) newY = -250;
-
-                return {
-                    ...business,
-                    position: { x: newX, y: newY },
-                    velocity: { x: newVelocityX, y: newVelocityY }
-                };
-            }));
-
-            animationId = requestAnimationFrame(animate);
-        };
-
-        animationId = requestAnimationFrame(animate);
-        return () => cancelAnimationFrame(animationId);
-    }, [draggingId]);
-
-    // Simplified scroll handler
-    useEffect(() => {
-        const handleScroll = () => {
-            const currentScrollY = window.scrollY;
-            const totalScroll = document.documentElement.scrollHeight - window.innerHeight;
-            const currentProgress = (currentScrollY / totalScroll) * 100;
-            setScrollProgress(currentProgress);
-
-            // Check stats section
-            if (statsRef.current) {
-                const rect = statsRef.current.getBoundingClientRect();
-                const inView = rect.top <= window.innerHeight / 2 && rect.bottom >= window.innerHeight / 2;
-
-                if (inView && !isInStatsSection) {
-                    setIsInStatsSection(true);
-                    scrollAccumulator.current = 0;
-                    setHighlightedStatIndex(0);
-                } else if (!inView && isInStatsSection) {
-                    setIsInStatsSection(false);
-                    setHighlightedStatIndex(-1);
-                }
-
-                // Progress through stats when scrolling in stats section
-                if (inView && currentScrollY > lastScrollY.current) {
-                    scrollAccumulator.current += (currentScrollY - lastScrollY.current);
-
-                    // Every 50px of scroll = next stat
-                    const newIndex = Math.min(Math.floor(scrollAccumulator.current / 50), stats.length - 1);
-                    if (newIndex !== highlightedStatIndex && newIndex < stats.length) {
-                        setHighlightedStatIndex(newIndex);
-                    }
-                }
+            if (reverse) {
+                offsetRef.current -= (speed * delta) / 1000;
+                if (offsetRef.current <= 0) offsetRef.current += singleSetWidth;
+            } else {
+                offsetRef.current += (speed * delta) / 1000;
+                if (offsetRef.current >= singleSetWidth) offsetRef.current -= singleSetWidth;
             }
 
-            lastScrollY.current = currentScrollY;
-
-            // Visible sections
-            const sections = [
-                { ref: statsRef, name: 'stats' },
-                { ref: featuresRef, name: 'features' },
-                { ref: categoriesRef, name: 'categories' }
-            ];
-
-            const newVisibleSections = new Set();
-            sections.forEach(({ ref, name }) => {
-                if (ref.current) {
-                    const rect = ref.current.getBoundingClientRect();
-                    if (rect.top < window.innerHeight * 0.75 && rect.bottom > 0) {
-                        newVisibleSections.add(name);
-                    }
-                }
-            });
-
-            setVisibleSections(newVisibleSections);
+            if (trackRef.current) {
+                trackRef.current.style.transform = `translateX(-${offsetRef.current}px)`;
+            }
+            animRef.current = requestAnimationFrame(animate);
         };
 
-        window.addEventListener('scroll', handleScroll, { passive: true });
-        handleScroll();
-
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, [isInStatsSection, highlightedStatIndex]);
-
-    const handlePositionUpdate = (id, position, isDragging = false) => {
-        setBusinesses(prev => prev.map(b =>
-            b.id === id ? {
-                ...b,
-                position,
-                velocity: isDragging ? { x: 0, y: 0 } : randomVelocity()
-            } : b
-        ));
-    };
-
-    const handleDragStart = (id) => {
-        setDraggingId(id);
-    };
-
-    const handleDragEnd = (id) => {
-        setDraggingId(null);
-        setBusinesses(prev => prev.map(b =>
-            b.id === id ? { ...b, velocity: randomVelocity() } : b
-        ));
-    };
-
-    const handleButtonClick = () => {
-        navigate('/dashboard');
-    };
-
-    const getStyles = () => ({
-        ...styles,
-        page: {
-            ...styles.page,
-            backgroundColor: isDarkMode ? darkColors.background : '#f8f9fa',
-            color: isDarkMode ? darkColors.text : '#1a1a1a'
-        },
-        nav: {
-            ...styles.nav,
-            backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-            borderBottom: 'none'
-        },
-        btnSecondary: {
-            ...styles.btnSecondary,
-            color: isDarkMode ? darkColors.text : '#1a1a1a',
-            borderColor: isDarkMode ? darkColors.border : '#e0e0e0'
-        },
-        heroCanvas: {
-            ...styles.heroCanvas,
-            backgroundColor: isDarkMode ? darkColors.cardBg : '#ffffff'
-        },
-        statCard: {
-            ...styles.statCard,
-            backgroundColor: isDarkMode ? darkColors.cardBg : '#fafafa',
-            border: isDarkMode ? `2px solid ${darkColors.border}` : '2px solid #f0f0f0'
-        },
-        statValue: {
-            ...styles.statValue,
-            color: isDarkMode ? darkColors.text : '#1a1a1a'
-        },
-        statLabel: {
-            ...styles.statLabel,
-            color: isDarkMode ? darkColors.textSecondary : '#666'
-        },
-        stats: {
-            ...styles.stats,
-            backgroundColor: isDarkMode ? darkColors.background : '#fff'
-        },
-        features: {
-            ...styles.features,
-            backgroundColor: isDarkMode ? darkColors.cardBg : '#f8f9fa'
-        },
-        featureCard: {
-            ...styles.featureCard,
-            backgroundColor: isDarkMode ? darkColors.background : '#fff',
-            border: isDarkMode ? `2px solid ${darkColors.border}` : '2px solid #f0f0f0'
-        },
-        featureTitle: {
-            ...styles.featureTitle,
-            color: isDarkMode ? darkColors.text : '#1a1a1a'
-        },
-        featureText: {
-            ...styles.featureText,
-            color: isDarkMode ? darkColors.textSecondary : '#666'
-        },
-        sectionTitle: {
-            ...styles.sectionTitle,
-            color: isDarkMode ? darkColors.text : '#1a1a1a'
-        },
-        sectionSubtitle: {
-            ...styles.sectionSubtitle,
-            color: isDarkMode ? darkColors.textSecondary : '#666'
-        },
-        categoriesSection: {
-            ...styles.categoriesSection,
-            backgroundColor: isDarkMode ? darkColors.background : '#fff'
-        },
-        categoryCard: {
-            ...styles.categoryCard,
-            backgroundColor: isDarkMode ? darkColors.cardBg : '#fafafa',
-            border: isDarkMode ? `2px solid ${darkColors.border}` : '2px solid #f0f0f0'
-        },
-        categoryName: {
-            ...styles.categoryName,
-            color: isDarkMode ? darkColors.text : '#1a1a1a'
-        },
-        categoryCount: {
-            ...styles.categoryCount,
-            color: isDarkMode ? darkColors.textSecondary : '#666'
-        }
-    });
-
-    const currentStyles = getStyles();
+        if (reverse) offsetRef.current = singleSetWidth;
+        animRef.current = requestAnimationFrame(animate);
+        return () => cancelAnimationFrame(animRef.current);
+    }, [speed, singleSetWidth, reverse]);
 
     return (
-        <div style={currentStyles.page}>
-            {/* Scroll progress indicator */}
-            <div style={{
-                ...currentStyles.scrollProgress,
-                width: `${scrollProgress}%`,
-                background: 'linear-gradient(90deg, #3b82f6, #60a5fa)'
-            }} />
+        <div style={{overflow: 'hidden', width: '100%', position: 'relative'}}>
+            <div style={{position: 'absolute', left: 0, top: 0, bottom: 0, width: '80px', background: 'linear-gradient(to right, var(--carousel-bg), transparent)', zIndex: 2, pointerEvents: 'none'}}/>
+            <div style={{position: 'absolute', right: 0, top: 0, bottom: 0, width: '80px', background: 'linear-gradient(to left, var(--carousel-bg), transparent)', zIndex: 2, pointerEvents: 'none'}}/>
+            <div ref={trackRef} style={{display: 'flex', gap: `${gap}px`, willChange: 'transform'}}>
+                {tripled.map((item, i) => (
+                    <div key={i} style={{flex: `0 0 ${cardWidth}px`, minWidth: `${cardWidth}px`}}>
+                        {renderCard(item, i % items.length)}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
 
-            {/* Floating Navigation */}
-            <nav style={{
-                ...currentStyles.nav,
-                position: 'fixed',
-                top: '1rem',
-                left: '1rem',
-                right: '1rem',
-                margin: '0 auto',
-                maxWidth: '1280px',
-                borderRadius: '20px',
-                boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
-                padding: '0.75rem 0'
+// ─── Diagonal Divider ─────────────────────────────────────────
+const DiagonalDivider = ({fromColor, toColor, direction = 'left', height = 60}) => {
+    if (direction === 'left') {
+        return (
+            <div style={{position: 'relative', height: `${height}px`, overflow: 'hidden', zIndex: 1}}>
+                <div style={{position: 'absolute', inset: 0, backgroundColor: fromColor}}/>
+                <svg viewBox={`0 0 100 ${height}`} preserveAspectRatio="none" style={{position: 'absolute', bottom: 0, left: 0, width: '100%', height: '100%'}}>
+                    <polygon points={`0,${height} 100,0 100,${height}`} fill={toColor}/>
+                </svg>
+            </div>
+        );
+    } else {
+        return (
+            <div style={{position: 'relative', height: `${height}px`, overflow: 'hidden', zIndex: 1}}>
+                <div style={{position: 'absolute', inset: 0, backgroundColor: fromColor}}/>
+                <svg viewBox={`0 0 100 ${height}`} preserveAspectRatio="none" style={{position: 'absolute', bottom: 0, left: 0, width: '100%', height: '100%'}}>
+                    <polygon points={`0,0 100,${height} 100,${height} 0,${height}`} fill={toColor}/>
+                </svg>
+            </div>
+        );
+    }
+};
+
+// ─── Feature Card ─────────────────────────────────────────────
+const FeatureCard = ({feature, theme}) => {
+    const tintKey = `tint${feature.tint}`;
+    const borderKey = `borderTint${feature.tint}`;
+    return (
+        <div style={{backgroundColor: theme[tintKey] || theme.cardBg, border: `1.5px solid ${theme[borderKey] || theme.border}`, borderRadius: '16px', padding: '2rem', height: '100%', cursor: 'default'}}>
+            <div style={{width: '46px', height: '46px', borderRadius: '12px', border: `1.5px solid ${theme[borderKey] || theme.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.25rem', color: theme.text}}>
+                <feature.icon size={21}/>
+            </div>
+            <h3 style={{fontSize: '1.08rem', fontWeight: '600', marginBottom: '0.5rem', color: theme.text}}>{feature.title}</h3>
+            <p style={{fontSize: '0.86rem', color: theme.textSecondary, lineHeight: '1.6', margin: 0}}>{feature.text}</p>
+        </div>
+    );
+};
+
+// ─── Category Card ────────────────────────────────────────────
+const CategoryCard = ({cat, theme, tint}) => {
+    const tintKey = `tint${tint}`;
+    const borderKey = `borderTint${tint}`;
+    return (
+        <div style={{backgroundColor: theme[tintKey] || theme.cardBg, border: `1.5px solid ${theme[borderKey] || theme.border}`, borderRadius: '16px', padding: '1.75rem 1.25rem', textAlign: 'center', height: '100%', cursor: 'default'}}>
+            <div style={{width: '50px', height: '50px', borderRadius: '13px', border: `1.5px solid ${theme[borderKey] || theme.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 0.9rem', color: theme.text}}>
+                <cat.icon size={23}/>
+            </div>
+            <h3 style={{fontSize: '0.98rem', fontWeight: '600', marginBottom: '0.25rem', color: theme.text}}>{cat.name}</h3>
+            <p style={{fontSize: '0.75rem', color: theme.textMuted, marginBottom: '0.15rem'}}>{cat.description}</p>
+            <p style={{fontSize: '0.75rem', color: theme.textSecondary, fontWeight: '500', margin: 0}}>{cat.count} businesses</p>
+        </div>
+    );
+};
+
+// ─── Review Card ──────────────────────────────────────────────
+const ReviewCard = ({review, theme}) => (
+    <div style={{backgroundColor: theme.cardBg, border: `1.5px solid ${theme.border}`, borderRadius: '16px', padding: '2rem', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between'}}>
+        <div>
+            <div style={{display: 'flex', gap: '2px', marginBottom: '1rem'}}>
+                {[1,2,3,4,5].map(s => (<Star key={s} size={14} fill={s <= review.rating ? '#f59e0b' : 'none'} color="#f59e0b"/>))}
+            </div>
+            <p style={{fontSize: '0.88rem', color: theme.textSecondary, lineHeight: '1.7', fontStyle: 'italic', margin: '0 0 1.5rem 0'}}>"{review.quote}"</p>
+        </div>
+        <div>
+            <p style={{fontSize: '0.88rem', fontWeight: '600', color: theme.text, margin: '0 0 0.1rem 0'}}>— {review.name}</p>
+            <p style={{fontSize: '0.75rem', color: theme.textMuted, margin: 0, fontStyle: 'italic'}}>{review.role}</p>
+        </div>
+    </div>
+);
+
+// ─── Hero Section with Globe ──────────────────────────────────
+const HeroSection = ({theme, onNavigate, isDarkMode}) => {
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isFocused, setIsFocused] = useState(false);
+    const typedText = useTypingAnimation(typingPhrases, 30, 15, 2200);
+
+    const handleSearch = (e) => {
+        e.preventDefault();
+        if (searchQuery.trim()) onNavigate();
+    };
+
+    return (
+        <section style={{
+            position: 'relative', width: '100%', minHeight: '100vh',
+            display: 'flex', alignItems: 'center', backgroundColor: theme.bg,
+            overflow: 'hidden', paddingTop: '100px', paddingBottom: '80px'
+        }}>
+            <div style={{
+                position: 'absolute', inset: 0,
+                backgroundImage: `radial-gradient(circle, ${theme.border} 0.8px, transparent 0.8px)`,
+                backgroundSize: '32px 32px', opacity: 0.3
+            }}/>
+
+            <div style={{
+                position: 'relative', zIndex: 1, maxWidth: '1280px', width: '100%',
+                margin: '0 auto', padding: '0 2rem', display: 'flex',
+                alignItems: 'center', gap: '2rem'
             }}>
-                <div style={currentStyles.navContainer}>
-                    <div style={currentStyles.logo}>
-                        <Sparkles size={28} style={{ color: '#3b82f6' }} />
-                        <span style={currentStyles.logoText}>SmallSpark</span>
+                {/* Left Side — Text content */}
+                <div style={{flex: '1 1 50%', maxWidth: '560px'}}>
+                    <div style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                        padding: '0.35rem 0.9rem', border: `1.5px solid ${theme.border}`,
+                        borderRadius: '50px', fontSize: '0.72rem', fontWeight: '600',
+                        marginBottom: '2rem', color: theme.textMuted,
+                        letterSpacing: '0.06em', textTransform: 'uppercase'
+                    }}>
+                        <Zap size={13}/>
+                        <span>Discover Local. Support Small.</span>
                     </div>
 
-                    <div style={currentStyles.navButtons}>
-                        <DarkModeToggle isDark={isDarkMode} onToggle={() => setIsDarkMode(!isDarkMode)} />
+                    <h1 style={{
+                        fontSize: 'clamp(2.5rem, 5vw, 4rem)', fontWeight: '800',
+                        marginBottom: '1.5rem', color: theme.text, lineHeight: '1.08',
+                        fontFamily: "'Poppins', sans-serif", letterSpacing: '-0.035em'
+                    }}>
+                        Find Local Businesses<br/>
+                        <span style={{fontStyle: 'italic', fontWeight: '400'}}>You'll Love</span>
+                    </h1>
+
+                    <div style={{minHeight: '4.2rem', marginBottom: '2.5rem'}}>
+                        <p style={{
+                            fontSize: 'clamp(0.92rem, 1.4vw, 1.1rem)', color: theme.textSecondary,
+                            fontWeight: '400', lineHeight: '1.65', margin: 0
+                        }}>
+                            {typedText}
+                            <span style={{
+                                display: 'inline-block', width: '2px', height: '1.1em',
+                                backgroundColor: theme.text, marginLeft: '2px',
+                                verticalAlign: 'text-bottom', animation: 'cursorBlink 0.7s infinite'
+                            }}/>
+                        </p>
+                    </div>
+
+                    <form onSubmit={handleSearch} style={{maxWidth: '480px', marginBottom: '2.5rem'}}>
+                        <div style={{
+                            display: 'flex', alignItems: 'center',
+                            backgroundColor: theme.cardBgAlt, borderRadius: '14px',
+                            padding: '0.5rem 0.5rem 0.5rem 1.1rem',
+                            border: isFocused ? `2px solid ${theme.accent}` : `1.5px solid ${theme.border}`,
+                            transition: 'all 0.3s ease'
+                        }}>
+                            <Search size={17} style={{color: theme.textMuted, marginRight: '0.6rem', flexShrink: 0}}/>
+                            <input
+                                type="text" value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onFocus={() => setIsFocused(true)}
+                                onBlur={() => setIsFocused(false)}
+                                placeholder="Search for businesses near you..."
+                                style={{
+                                    flex: 1, border: 'none', background: 'transparent',
+                                    fontSize: '0.92rem', fontFamily: "'Poppins', sans-serif",
+                                    color: theme.text, outline: 'none', padding: '0.35rem 0'
+                                }}
+                            />
+                            <button type="submit" style={{
+                                background: theme.accent, border: 'none', borderRadius: '10px',
+                                padding: '0.6rem 1.3rem', color: theme.accentText,
+                                fontSize: '0.86rem', fontWeight: '600', cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', gap: '0.35rem',
+                                transition: 'all 0.2s ease', fontFamily: "'Poppins', sans-serif",
+                                whiteSpace: 'nowrap'
+                            }}>
+                                <span>Search</span>
+                                <ArrowRight size={15}/>
+                            </button>
+                        </div>
+                    </form>
+
+                    <div style={{display: 'flex', gap: '2.5rem', alignItems: 'flex-start'}}>
+                        {[
+                            {val: '10,000+', label: 'Local Businesses'},
+                            {val: '50,000+', label: 'Active Users'},
+                            {val: '100,000+', label: 'Reviews Posted'}
+                        ].map((s, i) => (
+                            <div key={i}>
+                                <div style={{fontSize: '1.4rem', fontWeight: '700', color: theme.text, marginBottom: '0.1rem', letterSpacing: '-0.02em'}}>{s.val}</div>
+                                <div style={{fontSize: '0.68rem', color: theme.textMuted, fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.05em'}}>{s.label}</div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Right Side — Interactive Globe */}
+                <div className="hero-right-side" style={{
+                    flex: '1 1 50%', display: 'flex', justifyContent: 'center',
+                    alignItems: 'center', position: 'relative'
+                }}>
+                    <InteractiveGlobe theme={theme} isDarkMode={isDarkMode} />
+                </div>
+            </div>
+        </section>
+    );
+};
+
+// ─── Carousel Section ─────────────────────────────────────────
+const CarouselSection = ({title, subtitle, items, renderCard, theme, bgColor, speed, cardWidth, reverse}) => (
+    <section style={{padding: '5rem 0', backgroundColor: bgColor, position: 'relative', zIndex: 1, '--carousel-bg': bgColor}}>
+        <div style={{maxWidth: '1280px', margin: '0 auto', padding: '0 2rem'}}>
+            <div style={{textAlign: 'center', marginBottom: '2.5rem'}}>
+                <h2 style={{fontSize: '2rem', fontWeight: '700', marginBottom: '0.5rem', color: theme.text, letterSpacing: '-0.025em'}}>{title}</h2>
+                <p style={{fontSize: '0.98rem', color: theme.textSecondary, maxWidth: '480px', margin: '0 auto'}}>{subtitle}</p>
+            </div>
+        </div>
+        <InfiniteCarousel items={items} renderCard={renderCard} speed={speed || 35} cardWidth={cardWidth || 320} gap={20} reverse={reverse || false}/>
+    </section>
+);
+
+// ─── Footer ───────────────────────────────────────────────────
+const Footer = ({theme}) => {
+    const footerLinks = {
+        Product: ['Features', 'Pricing', 'API', 'Integrations'],
+        Company: ['About', 'Blog', 'Careers', 'Press'],
+        Support: ['Help Center', 'Contact', 'Privacy', 'Terms']
+    };
+    return (
+        <footer style={{backgroundColor: theme.footerBg, color: theme.footerText, padding: '4rem 2rem 2rem', position: 'relative', zIndex: 1}}>
+            <div style={{maxWidth: '1280px', margin: '0 auto', display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '3rem', paddingBottom: '3rem', borderBottom: '1px solid #222'}}>
+                <div>
+                    <div style={{marginBottom: '1rem'}}>
+                        <img src="/logo_dark.png" alt="Spark" style={{height: '32px', width: 'auto', display: 'block'}}/>
+                    </div>
+                    <p style={{fontSize: '0.85rem', color: theme.footerTextSecondary, lineHeight: '1.6', maxWidth: '260px', marginBottom: '1.5rem'}}>
+                        Connecting communities with the local businesses they love. Discover, support, and grow together.
+                    </p>
+                    <div style={{display: 'flex', gap: '0.6rem'}}>
+                        {['X', 'f', 'in', 'ig'].map((icon, i) => (
+                            <div key={i} style={{width: '34px', height: '34px', borderRadius: '8px', border: '1px solid #333', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: '700', color: '#888', cursor: 'pointer', transition: 'all 0.2s ease'}}
+                                 onMouseEnter={e => {e.currentTarget.style.borderColor = '#fff'; e.currentTarget.style.color = '#fff';}}
+                                 onMouseLeave={e => {e.currentTarget.style.borderColor = '#333'; e.currentTarget.style.color = '#888';}}
+                            >{icon}</div>
+                        ))}
+                    </div>
+                </div>
+                {Object.entries(footerLinks).map(([heading, links]) => (
+                    <div key={heading}>
+                        <h4 style={{fontSize: '0.75rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#666', marginBottom: '1.25rem'}}>{heading}</h4>
+                        {links.map(link => (
+                            <a key={link} href="#" style={{display: 'block', fontSize: '0.88rem', color: '#ccc', textDecoration: 'none', marginBottom: '0.7rem', transition: 'color 0.2s'}}
+                               onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+                               onMouseLeave={e => e.currentTarget.style.color = '#ccc'}
+                            >{link}</a>
+                        ))}
+                    </div>
+                ))}
+            </div>
+            <div style={{maxWidth: '1280px', margin: '0 auto', paddingTop: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem'}}>
+                <p style={{fontSize: '0.78rem', color: '#666', margin: 0}}>© 2026 Spark. All rights reserved.</p>
+                <div style={{display: 'flex', gap: '1.5rem'}}>
+                    {['Privacy Policy', 'Terms of Service', 'Cookies'].map(link => (
+                        <a key={link} href="#" style={{fontSize: '0.78rem', color: '#666', textDecoration: 'none', transition: 'color 0.2s'}}
+                           onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+                           onMouseLeave={e => e.currentTarget.style.color = '#666'}
+                        >{link}</a>
+                    ))}
+                </div>
+            </div>
+        </footer>
+    );
+};
+
+// ─── CTA Section ──────────────────────────────────────────────
+const CTASection = ({theme, onNavigate}) => (
+    <section style={{padding: '5rem 2rem', backgroundColor: theme.accent, color: theme.accentText, position: 'relative', zIndex: 1}}>
+        <div style={{maxWidth: '650px', margin: '0 auto', textAlign: 'center'}}>
+            <h2 style={{fontSize: '2.3rem', fontWeight: '700', marginBottom: '1rem', letterSpacing: '-0.02em'}}>Ready to discover local businesses?</h2>
+            <p style={{fontSize: '1.1rem', marginBottom: '2.5rem', opacity: 0.8, lineHeight: '1.6'}}>Join thousands of users supporting small businesses in their community.</p>
+            <button onClick={onNavigate} style={{display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.85rem 2rem', background: theme.accentText, color: theme.accent, border: 'none', borderRadius: '12px', fontWeight: '700', fontSize: '1rem', cursor: 'pointer', transition: 'all 0.2s ease', fontFamily: "'Poppins', sans-serif"}}>
+                <span>Get Started Free</span>
+                <ArrowRight size={18}/>
+            </button>
+        </div>
+    </section>
+);
+
+// ═══════════════════════════════════════════════════════════════
+// ─── MAIN COMPONENT ───────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+const HomePage = () => {
+    const navigate = useNavigate();
+    const {isSignedIn} = useUser();
+    const [isDarkMode, setIsDarkMode] = useState(false);
+    const [scrollProgress, setScrollProgress] = useState(0);
+    const theme = isDarkMode ? darkTheme : lightTheme;
+
+    const SITE_URL = 'https://YOUR_SITE_URL.com';
+    const translateUrl = `https://translate.google.com/website?sl=en&tl=es&hl=en-US&u=${encodeURIComponent(SITE_URL)}`;
+
+    useEffect(() => {
+        const handleScroll = () => {
+            const totalScroll = document.documentElement.scrollHeight - window.innerHeight;
+            setScrollProgress((window.scrollY / totalScroll) * 100);
+        };
+        window.addEventListener('scroll', handleScroll, {passive: true});
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    const handleButtonClick = () => navigate('/dashboard');
+
+    return (
+        <div style={{
+            fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+            backgroundColor: theme.bg, color: theme.text, minHeight: '100vh',
+            transition: 'background-color 0.3s ease, color 0.3s ease'
+        }}>
+            <div style={{position: 'fixed', top: 0, left: 0, height: '3px', width: `${scrollProgress}%`, background: theme.accent, zIndex: 1000, transition: 'width 0.1s ease'}}/>
+
+            {/* Nav */}
+            <nav style={{
+                position: 'fixed', top: '0.75rem', left: '0.75rem', right: '0.75rem',
+                margin: '0 auto', maxWidth: '1280px', borderRadius: '16px',
+                backdropFilter: 'blur(20px)', backgroundColor: theme.navBg,
+                border: `1px solid ${theme.border}`, padding: '0.6rem 0', zIndex: 100,
+                transition: 'all 0.3s ease'
+            }}>
+                <div style={{padding: '0 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+                    <div style={{cursor: 'pointer'}} onClick={handleButtonClick}>
+                        <img src={isDarkMode ? '/logo_dark.png' : '/logo_light.png'} alt="Spark" style={{height: '36px', width: 'auto', display: 'block'}}/>
+                    </div>
+                    <div style={{display: 'flex', gap: '0.6rem', alignItems: 'center'}}>
+                        <a href={translateUrl} target="_blank" rel="noopener noreferrer"
+                           style={{background: 'transparent', border: `1.5px solid ${theme.border}`, borderRadius: '50%', width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.3s ease', color: theme.text, textDecoration: 'none'}}
+                           aria-label="Translate page"><Languages size={18}/></a>
+
+                        <button onClick={() => setIsDarkMode(!isDarkMode)}
+                                style={{background: 'transparent', border: `1.5px solid ${theme.border}`, borderRadius: '50%', width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.3s ease', color: theme.text}}
+                                aria-label="Toggle dark mode">{isDarkMode ? <Sun size={18}/> : <Moon size={18}/>}</button>
+
                         {isSignedIn ? (
                             <>
-                                <button style={currentStyles.btnSecondary} onClick={handleButtonClick}>
-                                    Dashboard
-                                </button>
-                                <UserButton afterSignOutUrl="/" />
+                                <button onClick={handleButtonClick} style={{padding: '0.5rem 1.2rem', border: `1.5px solid ${theme.border}`, background: 'transparent', borderRadius: '10px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.84rem', color: theme.text, transition: 'all 0.2s ease'}}>Dashboard</button>
+                                <UserButton afterSignOutUrl="/"/>
                             </>
                         ) : (
                             <>
                                 <SignInButton mode="modal">
-                                    <button style={currentStyles.btnSecondary}>Sign In</button>
+                                    <button style={{padding: '0.5rem 1.2rem', border: `1.5px solid ${theme.border}`, background: 'transparent', borderRadius: '10px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.84rem', color: theme.text, transition: 'all 0.2s ease'}}>Sign In</button>
                                 </SignInButton>
                                 <SignUpButton mode="modal">
-                                    <button style={currentStyles.btnPrimary}>Get Started</button>
+                                    <button style={{padding: '0.5rem 1.2rem', border: 'none', background: theme.accent, color: theme.accentText, borderRadius: '10px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.84rem', transition: 'all 0.2s ease'}}>Get Started</button>
                                 </SignUpButton>
                             </>
                         )}
@@ -688,564 +533,42 @@ const HomePage = () => {
                 </div>
             </nav>
 
-            {/* Full-Screen Floating Canvas */}
-            <section style={currentStyles.heroCanvas}>
-                <div style={currentStyles.canvasContainer}>
-                    <CenterTextWithContainer isDarkMode={isDarkMode} />
+            <HeroSection theme={theme} onNavigate={handleButtonClick} isDarkMode={isDarkMode}/>
 
-                    {businesses.map(business => (
-                        <FloatingBusinessCard
-                            key={business.id}
-                            business={business}
-                            allBusinesses={businesses}
-                            onPositionUpdate={handlePositionUpdate}
-                            onDragStart={handleDragStart}
-                            onDragEnd={handleDragEnd}
-                            isHovered={hoveredId === business.id}
-                            onHover={setHoveredId}
-                            isDarkMode={isDarkMode}
-                        />
-                    ))}
-                </div>
-            </section>
+            <DiagonalDivider fromColor={theme.bg} toColor={theme.bgAlt} direction="left" height={64}/>
+            <CarouselSection title="Why Choose Spark?" subtitle="Everything you need to discover and support local businesses" items={features} theme={theme} bgColor={theme.bgAlt} speed={30} cardWidth={320} reverse={false} renderCard={(feature) => <FeatureCard feature={feature} theme={theme}/>}/>
 
-            <div style={currentStyles.sectionDivider} />
+            <DiagonalDivider fromColor={theme.bgAlt} toColor={theme.bg} direction="right" height={64}/>
+            <CarouselSection title="Browse by Category" subtitle="Explore thousands of local businesses organized by industry" items={categories} theme={theme} bgColor={theme.bg} speed={25} cardWidth={250} reverse={true} renderCard={(cat, i) => <CategoryCard cat={cat} theme={theme} tint={tintColors[i]}/>}/>
 
-            {/* Stats Section with Progressive Highlighting */}
-            <section
-                ref={statsRef}
-                style={{
-                    ...currentStyles.stats,
-                    transform: visibleSections.has('stats') ? 'translateY(0)' : 'translateY(100px)',
-                    opacity: visibleSections.has('stats') ? 1 : 0
-                }}
-            >
-                <div style={currentStyles.container}>
-                    <div style={currentStyles.statsGrid}>
-                        {stats.map((stat, i) => (
-                            <div
-                                key={i}
-                                style={{
-                                    ...currentStyles.statCard,
-                                    transitionDelay: `${i * 100}ms`,
-                                    transform: highlightedStatIndex === i ? 'scale(1.1) translateY(-10px)' : 'scale(1)',
-                                    boxShadow: highlightedStatIndex === i
-                                        ? '0 20px 60px rgba(59, 130, 246, 0.4)'
-                                        : '0 4px 15px rgba(0,0,0,0.05)',
-                                    border: highlightedStatIndex === i
-                                        ? '3px solid #3b82f6'
-                                        : (isDarkMode ? `2px solid ${darkColors.border}` : '2px solid #f0f0f0'),
-                                    transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'
-                                }}
-                                onClick={handleButtonClick}
-                            >
-                                <div style={{
-                                    ...currentStyles.statIcon,
-                                    backgroundColor: pastelColors[i * 2],
-                                    color: '#1a1a1a',
-                                    transform: highlightedStatIndex === i ? 'rotate(360deg) scale(1.2)' : 'rotate(0deg) scale(1)',
-                                    transition: 'all 0.5s ease'
-                                }}>
-                                    <stat.icon size={24} />
-                                </div>
-                                <div style={currentStyles.statValue}>{stat.value}</div>
-                                <div style={currentStyles.statLabel}>{stat.label}</div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
+            <DiagonalDivider fromColor={theme.bg} toColor={theme.bgAlt} direction="left" height={64}/>
+            <CarouselSection title="What Our Users Say" subtitle="Real stories from people who love supporting local businesses" items={reviews} theme={theme} bgColor={theme.bgAlt} speed={28} cardWidth={340} reverse={false} renderCard={(review) => <ReviewCard review={review} theme={theme}/>}/>
 
-            <div style={currentStyles.sectionDivider} />
-
-            {/* Features Section */}
-            <section
-                ref={featuresRef}
-                style={currentStyles.features}
-            >
-                <div style={currentStyles.container}>
-                    <div style={{
-                        ...currentStyles.sectionHeader,
-                        transform: visibleSections.has('features') ? 'translateY(0)' : 'translateY(50px)',
-                        opacity: visibleSections.has('features') ? 1 : 0
-                    }}>
-                        <h2 style={currentStyles.sectionTitle}>Why Choose SmallSpark?</h2>
-                        <p style={currentStyles.sectionSubtitle}>Everything you need to discover and support local businesses</p>
-                    </div>
-
-                    <div style={currentStyles.featureGrid}>
-                        {[
-                            { icon: MapPin, title: 'Interactive Maps', text: 'Explore businesses with our interactive map feature.', color: pastelColors[0] },
-                            { icon: Star, title: 'Verified Reviews', text: 'Read authentic reviews from real customers.', color: pastelColors[1] },
-                            { icon: Heart, title: 'Save Favorites', text: 'Bookmark your favorite businesses and collections.', color: pastelColors[2] },
-                            { icon: TrendingUp, title: 'Exclusive Deals', text: 'Access special offers and time-limited deals.', color: pastelColors[3] },
-                            { icon: Globe, title: 'Nationwide Coverage', text: 'Discover small businesses across the country.', color: pastelColors[4] },
-                            { icon: Shield, title: 'Verified Businesses', text: 'All businesses are verified and vetted.', color: pastelColors[5] }
-                        ].map((feature, i) => (
-                            <div
-                                key={i}
-                                style={{
-                                    ...currentStyles.featureCard,
-                                    transform: visibleSections.has('features') ? 'translateY(0)' : 'translateY(80px)',
-                                    opacity: visibleSections.has('features') ? 1 : 0,
-                                    transitionDelay: `${i * 100}ms`
-                                }}
-                                onClick={handleButtonClick}
-                            >
-                                <div style={{
-                                    ...currentStyles.featureIcon,
-                                    backgroundColor: feature.color,
-                                    color: '#1a1a1a'
-                                }}>
-                                    <feature.icon size={24} />
-                                </div>
-                                <h3 style={currentStyles.featureTitle}>{feature.title}</h3>
-                                <p style={currentStyles.featureText}>{feature.text}</p>
-                                <button style={currentStyles.featureLink} onClick={handleButtonClick}>
-                                    <span>Learn more</span>
-                                    <ChevronRight size={16} />
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            <div style={currentStyles.sectionDivider} />
-
-            {/* Categories Section */}
-            <section
-                ref={categoriesRef}
-                style={currentStyles.categoriesSection}
-            >
-                <div style={currentStyles.container}>
-                    <div style={{
-                        ...currentStyles.sectionHeader,
-                        transform: visibleSections.has('categories') ? 'translateY(0)' : 'translateY(50px)',
-                        opacity: visibleSections.has('categories') ? 1 : 0
-                    }}>
-                        <h2 style={currentStyles.sectionTitle}>Browse by Category</h2>
-                        <p style={currentStyles.sectionSubtitle}>Explore thousands of local businesses organized by industry</p>
-                    </div>
-
-                    <div style={currentStyles.categoryGrid}>
-                        {categories.map((cat, i) => (
-                            <div
-                                key={i}
-                                style={{
-                                    ...currentStyles.categoryCard,
-                                    transform: visibleSections.has('categories') ? 'scale(1)' : 'scale(0.8)',
-                                    opacity: visibleSections.has('categories') ? 1 : 0,
-                                    transitionDelay: `${i * 80}ms`
-                                }}
-                                onClick={handleButtonClick}
-                            >
-                                <div style={{
-                                    ...currentStyles.categoryIcon,
-                                    backgroundColor: pastelColors[i],
-                                    color: '#1a1a1a'
-                                }}>
-                                    <cat.icon size={32} />
-                                </div>
-                                <h3 style={currentStyles.categoryName}>{cat.name}</h3>
-                                <p style={currentStyles.categoryCount}>{cat.count} businesses</p>
-                                <button
-                                    style={{
-                                        ...currentStyles.categoryButton,
-                                        backgroundColor: pastelColors[i],
-                                        color: '#1a1a1a'
-                                    }}
-                                    onClick={handleButtonClick}
-                                >
-                                    <span>Explore</span>
-                                    <ArrowRight size={16} />
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            <div style={currentStyles.sectionDivider} />
-
-            {/* CTA Section */}
-            <section style={currentStyles.cta}>
-                <div style={currentStyles.container}>
-                    <div style={currentStyles.ctaContent}>
-                        <div style={currentStyles.ctaText}>
-                            <h2 style={currentStyles.ctaTitle}>Ready to discover local businesses?</h2>
-                            <p style={currentStyles.ctaSubtitle}>Join thousands of users supporting small businesses in their community</p>
-                            <div style={currentStyles.ctaButtons}>
-                                <button style={currentStyles.ctaPrimary} onClick={handleButtonClick}>
-                                    <span>Get Started Free</span>
-                                    <ArrowRight size={20} />
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
+            <DiagonalDivider fromColor={theme.bgAlt} toColor={theme.accent} direction="right" height={64}/>
+            <CTASection theme={theme} onNavigate={handleButtonClick}/>
+            <Footer theme={theme}/>
         </div>
     );
 };
 
-const styles = {
-    page: {
-        fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-        backgroundColor: '#f8f9fa',
-        color: '#1a1a1a',
-        minHeight: '100vh',
-        position: 'relative',
-        transition: 'background-color 0.3s ease, color 0.3s ease'
-    },
-    scrollProgress: {
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        height: '4px',
-        zIndex: 1000,
-        transition: 'width 0.1s ease',
-        boxShadow: '0 0 10px rgba(59, 130, 246, 0.5)'
-    },
-    nav: {
-        backdropFilter: 'blur(20px)',
-        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-        transition: 'all 0.3s ease',
-        zIndex: 100
-    },
-    navContainer: {
-        maxWidth: '100%',
-        margin: '0 auto',
-        padding: '0 2rem',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        position: 'relative',
-        zIndex: 1
-    },
-    logo: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.5rem',
-        fontSize: '1.5rem',
-        fontWeight: '700',
-        cursor: 'pointer',
-        transition: 'transform 0.2s'
-    },
-    logoText: {
-        background: 'linear-gradient(135deg, #3b82f6, #60a5fa)',
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
-        backgroundClip: 'text'
-    },
-    navButtons: {
-        display: 'flex',
-        gap: '1rem',
-        alignItems: 'center',
-        position: 'relative',
-        zIndex: 1
-    },
-    btnSecondary: {
-        padding: '0.625rem 1.5rem',
-        border: '2px solid #e0e0e0',
-        background: 'transparent',
-        borderRadius: '10px',
-        fontWeight: '600',
-        cursor: 'pointer',
-        transition: 'all 0.3s ease',
-        fontFamily: 'inherit',
-        fontSize: '0.9rem',
-        color: '#1a1a1a'
-    },
-    btnPrimary: {
-        padding: '0.625rem 1.5rem',
-        border: 'none',
-        background: 'linear-gradient(135deg, #3b82f6, #60a5fa)',
-        color: '#fff',
-        borderRadius: '10px',
-        fontWeight: '600',
-        cursor: 'pointer',
-        transition: 'all 0.3s ease',
-        fontFamily: 'inherit',
-        fontSize: '0.9rem',
-        boxShadow: '0 4px 15px rgba(59, 130, 246, 0.3)'
-    },
-    heroCanvas: {
-        position: 'relative',
-        width: '100%',
-        height: '100vh',
-        backgroundColor: '#ffffff',
-        backgroundImage: 'radial-gradient(circle, #e8e8e8 1px, transparent 1px)',
-        backgroundSize: '30px 30px',
-        transition: 'all 0.3s ease',
-        overflow: 'hidden',
-    },
-    canvasContainer: {
-        position: 'relative',
-        width: '100%',
-        height: '100%',
-        pointerEvents: 'none'
-    },
-    sectionDivider: {
-        height: '2px',
-        background: 'linear-gradient(90deg, transparent, #e0e0e0, transparent)',
-        margin: '0 auto',
-        width: '80%'
-    },
-    stats: {
-        padding: '5rem 2rem',
-        position: 'relative',
-        zIndex: 1,
-        transition: 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
-        backgroundColor: '#fff'
-    },
-    container: {
-        maxWidth: '1280px',
-        margin: '0 auto'
-    },
-    statsGrid: {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '2rem'
-    },
-    statCard: {
-        textAlign: 'center',
-        padding: '2rem',
-        cursor: 'pointer',
-        backgroundColor: '#fafafa',
-        borderRadius: '16px',
-        boxShadow: '0 4px 15px rgba(0,0,0,0.05)',
-        border: '2px solid #f0f0f0'
-    },
-    statIcon: {
-        width: '60px',
-        height: '60px',
-        margin: '0 auto 1rem',
-        borderRadius: '14px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: '#1a1a1a'
-    },
-    statValue: {
-        fontSize: '2.5rem',
-        fontWeight: '800',
-        color: '#1a1a1a',
-        marginBottom: '0.5rem',
-        transition: 'color 0.3s ease'
-    },
-    statLabel: {
-        color: '#666',
-        fontWeight: '500',
-        transition: 'color 0.3s ease'
-    },
-    features: {
-        padding: '5rem 2rem',
-        backgroundColor: '#f8f9fa',
-        position: 'relative',
-        zIndex: 1,
-        transition: 'background-color 0.3s ease'
-    },
-    sectionHeader: {
-        textAlign: 'center',
-        marginBottom: '4rem',
-        transition: 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1)'
-    },
-    sectionTitle: {
-        fontSize: '2.5rem',
-        fontWeight: '700',
-        marginBottom: '1rem',
-        color: '#1a1a1a',
-        transition: 'color 0.3s ease'
-    },
-    sectionSubtitle: {
-        fontSize: '1.125rem',
-        color: '#666',
-        maxWidth: '600px',
-        margin: '0 auto',
-        transition: 'color 0.3s ease'
-    },
-    featureGrid: {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-        gap: '2rem'
-    },
-    featureCard: {
-        backgroundColor: '#fff',
-        padding: '2rem',
-        borderRadius: '16px',
-        border: '2px solid #f0f0f0',
-        transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
-        cursor: 'pointer'
-    },
-    featureIcon: {
-        width: '60px',
-        height: '60px',
-        borderRadius: '14px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: '#1a1a1a',
-        marginBottom: '1.5rem',
-        transition: 'transform 0.3s ease'
-    },
-    featureTitle: {
-        fontSize: '1.25rem',
-        fontWeight: '600',
-        marginBottom: '0.75rem',
-        color: '#1a1a1a',
-        transition: 'color 0.3s ease'
-    },
-    featureText: {
-        color: '#666',
-        lineHeight: '1.6',
-        marginBottom: '1.5rem',
-        transition: 'color 0.3s ease'
-    },
-    featureLink: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.5rem',
-        color: '#3b82f6',
-        fontWeight: '600',
-        background: 'none',
-        border: 'none',
-        cursor: 'pointer',
-        fontSize: '0.95rem',
-        fontFamily: 'inherit',
-        transition: 'gap 0.3s ease'
-    },
-    categoriesSection: {
-        padding: '5rem 2rem',
-        backgroundColor: '#fff',
-        position: 'relative',
-        zIndex: 1,
-        transition: 'background-color 0.3s ease'
-    },
-    categoryGrid: {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-        gap: '2rem'
-    },
-    categoryCard: {
-        backgroundColor: '#fafafa',
-        padding: '2rem',
-        borderRadius: '16px',
-        border: '2px solid #f0f0f0',
-        textAlign: 'center',
-        transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
-        cursor: 'pointer'
-    },
-    categoryIcon: {
-        width: '60px',
-        height: '60px',
-        margin: '0 auto 1rem',
-        borderRadius: '14px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: '#1a1a1a',
-        transition: 'transform 0.3s ease'
-    },
-    categoryName: {
-        fontSize: '1.125rem',
-        fontWeight: '600',
-        marginBottom: '0.5rem',
-        color: '#1a1a1a',
-        transition: 'color 0.3s ease'
-    },
-    categoryCount: {
-        color: '#666',
-        fontSize: '0.875rem',
-        marginBottom: '1.5rem',
-        transition: 'color 0.3s ease'
-    },
-    categoryButton: {
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '0.5rem',
-        padding: '0.625rem 1.5rem',
-        color: '#1a1a1a',
-        border: 'none',
-        borderRadius: '10px',
-        fontWeight: '600',
-        cursor: 'pointer',
-        transition: 'all 0.3s ease',
-        fontFamily: 'inherit',
-        fontSize: '0.9rem'
-    },
-    cta: {
-        padding: '5rem 2rem',
-        background: 'url("/path/to/your/image.png") center center / cover no-repeat',
-        backgroundColor: '#0a1628',
-        color: '#fff',
-        position: 'relative',
-        zIndex: 1
-    },
-    ctaContent: {
-        maxWidth: '900px',
-        margin: '0 auto',
-        textAlign: 'center'
-    },
-    ctaText: {
-        marginBottom: '2rem'
-    },
-    ctaTitle: {
-        fontSize: '2.5rem',
-        fontWeight: '700',
-        marginBottom: '1rem'
-    },
-    ctaSubtitle: {
-        fontSize: '1.25rem',
-        marginBottom: '2rem',
-        opacity: 0.95
-    },
-    ctaButtons: {
-        display: 'flex',
-        gap: '1rem',
-        justifyContent: 'center',
-        flexWrap: 'wrap'
-    },
-    ctaPrimary: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.5rem',
-        padding: '1rem 2rem',
-        background: '#fff',
-        color: '#3b82f6',
-        border: 'none',
-        borderRadius: '12px',
-        fontWeight: '700',
-        fontSize: '1.05rem',
-        cursor: 'pointer',
-        transition: 'all 0.3s ease',
-        fontFamily: 'inherit'
-    }
-};
-
-// Add keyframe animations and hover effects
+// ─── Global Styles ────────────────────────────────────────────
 const styleSheet = document.createElement('style');
 styleSheet.textContent = `
-  @import url('https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap');
-  
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,700&display=swap');
+  * { box-sizing: border-box; }
+  ::placeholder { color: #999 !important; }
+
+  @keyframes cursorBlink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
   }
-  
-  button:hover {
-    transform: translateY(-2px);
+
+  .globe-card {
+    transition: opacity 0.8s ease, transform 0.8s ease !important;
   }
-  
-  [style*="btnSecondary"]:hover {
-    border-color: #3b82f6;
-    color: #3b82f6;
-  }
-  
-  [style*="btnPrimary"]:hover,
-  [style*="ctaPrimary"]:hover {
-    transform: scale(1.05);
-    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+
+  @media (max-width: 900px) {
+    .hero-right-side { display: none !important; }
   }
 `;
 document.head.appendChild(styleSheet);
