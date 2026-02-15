@@ -468,7 +468,7 @@ const CTASection = ({theme, onNavigate}) => (
 const HomePage = () => {
     const navigate = useNavigate();
     const {isSignedIn} = useUser();
-    const [isDarkMode, setIsDarkMode] = useState(false);
+    const [isDarkMode, setIsDarkMode] = useState(true);
     const [scrollProgress, setScrollProgress] = useState(0);
     const theme = isDarkMode ? darkTheme : lightTheme;
 
