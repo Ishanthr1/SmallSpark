@@ -8,7 +8,7 @@ import {
     ShoppingBag, Wrench, Palette, Music, Phone, Mail, Moon, Sun,
     ChevronLeft, Languages
 } from 'lucide-react';
-import InteractiveGlobe from './InteractiveGlobe.jsx';
+import InteractiveGlobe from './InteractiveGlobe';
 
 // ─── Theme Colors ─────────────────────────────────────────────
 const lightTheme = {
@@ -372,7 +372,8 @@ const HeroSection = ({theme, onNavigate, isDarkMode}) => {
                 {/* Right Side — Interactive Globe */}
                 <div className="hero-right-side" style={{
                     flex: '1 1 50%', display: 'flex', justifyContent: 'center',
-                    alignItems: 'center', position: 'relative'
+                    alignItems: 'center', position: 'relative',
+                    marginRight: '-100px', /* let globe overflow right edge for dramatic sizing */
                 }}>
                     <InteractiveGlobe theme={theme} isDarkMode={isDarkMode} />
                 </div>

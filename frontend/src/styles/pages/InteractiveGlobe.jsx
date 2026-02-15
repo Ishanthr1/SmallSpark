@@ -1,77 +1,92 @@
-// InteractiveGlobe.jsx — Three.js dotted sphere with continent-aware dots & floating business cards
+// InteractiveGlobe.jsx — Three.js dotted globe with continent-aware dots & business cards
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { Star, MapPin } from 'lucide-react';
 
 // ─── Famous small businesses with real coordinates ────────────
 const businesses = [
-    { name: "Café de Flore", location: "Paris, France", rating: 4.8, lat: 48.854, lng: 2.333, description: "Iconic literary café since 1887" },
-    { name: "Ichiran Ramen", location: "Tokyo, Japan", rating: 4.9, lat: 35.693, lng: 139.703, description: "Solo ramen dining experience" },
-    { name: "Shakespeare & Co.", location: "Paris, France", rating: 4.7, lat: 48.852, lng: 2.347, description: "Legendary indie bookshop" },
-    { name: "Taquería Los Cocuyos", location: "Mexico City", rating: 4.8, lat: 19.432, lng: -99.133, description: "Legendary late-night tacos" },
-    { name: "Bar Luce", location: "Milan, Italy", rating: 4.6, lat: 45.463, lng: 9.176, description: "Wes Anderson-designed café" },
-    { name: "City Lights Books", location: "San Francisco", rating: 4.8, lat: 37.798, lng: -122.407, description: "Beat Generation bookshop" },
-    { name: "Warung Babi Guling", location: "Bali, Indonesia", rating: 4.7, lat: -8.506, lng: 115.262, description: "Famous roast suckling pig" },
-    { name: "Tim Ho Wan", location: "Hong Kong", rating: 4.8, lat: 22.319, lng: 114.170, description: "World's cheapest Michelin star" },
-    { name: "Pieminister", location: "London, UK", rating: 4.5, lat: 51.524, lng: -0.072, description: "Gourmet British pies" },
-    { name: "Schwartz's Deli", location: "Montreal, Canada", rating: 4.7, lat: 45.518, lng: -73.577, description: "Smoked meat since 1928" },
-    { name: "Lune Croissanterie", location: "Melbourne, AU", rating: 4.9, lat: -37.810, lng: 144.939, description: "World's best croissants" },
-    { name: "Bo-Kaap Kombuis", location: "Cape Town, SA", rating: 4.6, lat: -33.921, lng: 18.414, description: "Cape Malay cuisine" },
+    { name: "Café de Flore", location: "Paris, France", rating: 4.8, lat: 48.854, lng: 2.333, desc: "Iconic literary café since 1887" },
+    { name: "Ichiran Ramen", location: "Tokyo, Japan", rating: 4.9, lat: 35.693, lng: 139.703, desc: "Solo ramen dining experience" },
+    { name: "Taquería Los Cocuyos", location: "Mexico City", rating: 4.8, lat: 19.432, lng: -99.133, desc: "Legendary late-night tacos" },
+    { name: "City Lights Books", location: "San Francisco", rating: 4.8, lat: 37.798, lng: -122.407, desc: "Beat Generation bookshop" },
+    { name: "Warung Babi Guling", location: "Bali, Indonesia", rating: 4.7, lat: -8.506, lng: 115.262, desc: "Famous roast suckling pig" },
+    { name: "Tim Ho Wan", location: "Hong Kong", rating: 4.8, lat: 22.319, lng: 114.170, desc: "Cheapest Michelin star" },
+    { name: "Pieminister", location: "London, UK", rating: 4.5, lat: 51.524, lng: -0.072, desc: "Gourmet British pies" },
+    { name: "Schwartz's Deli", location: "Montreal, Canada", rating: 4.7, lat: 45.518, lng: -73.577, desc: "Smoked meat since 1928" },
+    { name: "Lune Croissanterie", location: "Melbourne, AU", rating: 4.9, lat: -37.810, lng: 144.939, desc: "World's best croissants" },
+    { name: "Bo-Kaap Kombuis", location: "Cape Town, SA", rating: 4.6, lat: -33.921, lng: 18.414, desc: "Cape Malay cuisine" },
+    { name: "Bar Luce", location: "Milan, Italy", rating: 4.6, lat: 45.463, lng: 9.176, desc: "Wes Anderson café" },
+    { name: "Boulangerie Poilâne", location: "Paris, France", rating: 4.9, lat: 48.851, lng: 2.328, desc: "Famous sourdough bread" },
 ];
 
-// ─── Simplified continent detection (lat, lng → is land?) ─────
-// Uses bounding boxes for major landmasses. Not pixel-perfect, but visually convincing.
-function isLand(lat, lng) {
-    const regions = [
-        // North America
-        { latMin: 25, latMax: 72, lngMin: -170, lngMax: -50 },
-        // Central America / Caribbean
-        { latMin: 7, latMax: 25, lngMin: -120, lngMax: -60 },
-        // South America
-        { latMin: -56, latMax: 12, lngMin: -82, lngMax: -34 },
-        // Europe
-        { latMin: 35, latMax: 71, lngMin: -12, lngMax: 45 },
-        // Africa
-        { latMin: -35, latMax: 37, lngMin: -18, lngMax: 52 },
-        // Middle East
-        { latMin: 12, latMax: 42, lngMin: 25, lngMax: 63 },
-        // Russia / Central Asia
-        { latMin: 40, latMax: 78, lngMin: 45, lngMax: 180 },
-        // South Asia
-        { latMin: 5, latMax: 38, lngMin: 60, lngMax: 98 },
-        // East Asia
-        { latMin: 18, latMax: 55, lngMin: 98, lngMax: 145 },
-        // Southeast Asia (mainland)
-        { latMin: -2, latMax: 23, lngMin: 95, lngMax: 120 },
-        // Indonesia / Philippines
-        { latMin: -11, latMax: 20, lngMin: 95, lngMax: 141 },
-        // Australia
-        { latMin: -44, latMax: -10, lngMin: 112, lngMax: 155 },
-        // New Zealand
-        { latMin: -47, latMax: -34, lngMin: 166, lngMax: 179 },
-        // Japan / Korea
-        { latMin: 30, latMax: 46, lngMin: 125, lngMax: 146 },
-        // UK / Ireland
-        { latMin: 50, latMax: 60, lngMin: -11, lngMax: 2 },
-        // Scandinavia
-        { latMin: 55, latMax: 71, lngMin: 4, lngMax: 31 },
-        // Greenland
-        { latMin: 59, latMax: 84, lngMin: -73, lngMax: -12 },
-        // Alaska extension
-        { latMin: 54, latMax: 72, lngMin: -170, lngMax: -130 },
-        // Madagascar
-        { latMin: -26, latMax: -12, lngMin: 43, lngMax: 51 },
-    ];
+// ─── Continent polygons (simplified [lng, lat] outlines) ──────
+// Drawn onto a hidden equirectangular canvas for pixel-accurate land detection.
+const CONTINENT_POLYS = [
+    // North America
+    [[-130,55],[-165,63],[-168,66],[-165,72],[-140,70],[-130,72],[-118,74],[-90,74],[-85,70],[-78,68],[-68,60],[-55,52],[-57,47],[-67,44],[-70,42],[-75,35],[-82,30],[-82,25],[-97,25],[-100,20],[-105,20],[-115,30],[-120,34],[-125,48],[-130,55]],
+    // Central America
+    [[-100,20],[-97,18],[-92,15],[-88,15],[-85,12],[-83,8],[-79,8],[-77,8],[-82,10],[-86,13],[-90,16],[-96,17],[-100,20]],
+    // South America
+    [[-82,10],[-77,8],[-72,12],[-67,11],[-60,8],[-52,4],[-50,0],[-50,-5],[-45,-5],[-41,-3],[-35,-5],[-35,-10],[-37,-15],[-40,-20],[-42,-22],[-48,-28],[-52,-33],[-58,-38],[-65,-42],[-68,-46],[-68,-54],[-72,-50],[-75,-45],[-75,-35],[-70,-18],[-75,-15],[-77,-5],[-78,0],[-80,5],[-78,8],[-82,10]],
+    // Europe
+    [[-12,36],[-10,38],[-8,42],[-2,44],[0,46],[2,48],[5,48],[6,52],[5,54],[8,55],[10,55],[12,57],[15,56],[18,55],[20,55],[22,58],[24,60],[25,62],[28,65],[30,68],[30,70],[25,71],[20,70],[12,65],[5,62],[0,58],[-5,58],[-6,54],[-10,52],[-10,44],[-12,36]],
+    // Africa
+    [[-18,15],[-16,18],[-12,22],[-13,25],[-8,30],[-5,34],[0,36],[10,37],[12,34],[15,32],[20,32],[25,30],[30,30],[33,28],[35,30],[38,25],[42,12],[48,8],[50,2],[42,-2],[40,-10],[35,-22],[33,-26],[28,-34],[20,-35],[18,-30],[15,-25],[12,-18],[10,-5],[8,5],[5,5],[2,6],[-5,5],[-8,5],[-15,10],[-18,15]],
+    // Asia mainland
+    [[25,42],[30,42],[35,37],[38,37],[42,38],[45,40],[50,40],[55,42],[60,40],[65,38],[68,37],[72,32],[76,28],[78,22],[80,15],[80,8],[82,8],[88,22],[90,22],[92,20],[95,18],[98,16],[100,14],[104,10],[105,12],[108,16],[110,20],[112,22],[115,23],[118,25],[120,30],[122,32],[125,34],[128,36],[128,38],[130,42],[132,44],[135,45],[138,42],[140,44],[145,44],[142,48],[138,50],[135,55],[133,58],[120,62],[110,60],[95,60],[82,62],[75,68],[70,72],[65,70],[60,68],[55,65],[48,60],[42,55],[40,48],[35,45],[30,42],[25,42]],
+    // India
+    [[68,23],[70,28],[72,32],[76,28],[78,22],[80,15],[80,8],[76,8],[72,10],[68,15],[68,23]],
+    // SE Asia mainland
+    [[98,6],[100,14],[104,10],[108,3],[105,0],[102,-2],[100,0],[98,6]],
+    // Indonesia
+    [[95,-2],[105,-5],[110,-7],[115,-8],[120,-8],[125,-6],[130,-3],[135,-5],[140,-6],[140,-8],[135,-10],[128,-9],[120,-10],[115,-9],[108,-8],[105,-6],[98,-3],[95,-2]],
+    // Australia
+    [[115,-14],[120,-14],[125,-14],[130,-12],[135,-12],[140,-15],[145,-16],[150,-22],[152,-25],[153,-28],[150,-32],[148,-36],[146,-39],[140,-38],[135,-35],[130,-32],[125,-32],[120,-34],[115,-34],[114,-28],[114,-22],[116,-20],[116,-17],[115,-14]],
+    // UK/Ireland
+    [[-8,52],[-5,52],[-5,55],[-3,56],[-2,58],[0,58],[2,55],[2,52],[0,50],[-4,50],[-5,51],[-8,52]],
+    // Japan
+    [[130,31],[132,33],[134,35],[136,36],[138,38],[140,40],[142,43],[144,44],[142,45],[140,43],[138,40],[136,38],[133,35],[130,31]],
+    // New Zealand
+    [[165,-35],[168,-37],[173,-40],[175,-42],[174,-44],[172,-45],[170,-43],[168,-40],[166,-38],[165,-35]],
+    // Scandinavia
+    [[5,58],[8,58],[12,60],[15,62],[16,65],[18,68],[20,70],[22,70],[25,68],[30,70],[30,65],[28,62],[24,60],[18,57],[14,56],[10,56],[5,58]],
+    // Greenland
+    [[-55,60],[-50,63],[-45,66],[-42,70],[-38,73],[-30,76],[-22,78],[-18,76],[-20,72],[-25,68],[-30,64],[-38,62],[-45,60],[-55,60]],
+    // Madagascar
+    [[44,-12],[47,-14],[49,-18],[49,-22],[48,-25],[45,-25],[43,-22],[43,-17],[44,-12]],
+];
 
-    for (const r of regions) {
-        if (lat >= r.latMin && lat <= r.latMax && lng >= r.lngMin && lng <= r.lngMax) {
-            return true;
+// Build a 720×360 land-mask bitmap from polygon outlines
+function buildLandMap() {
+    const W = 720, H = 360;
+    const c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#fff';
+    for (const poly of CONTINENT_POLYS) {
+        ctx.beginPath();
+        for (let i = 0; i < poly.length; i++) {
+            const [lng, lat] = poly[i];
+            const px = ((lng + 180) / 360) * W;
+            const py = ((90 - lat) / 180) * H;
+            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
         }
+        ctx.closePath();
+        ctx.fill();
     }
-    return false;
+    return ctx.getImageData(0, 0, W, H);
 }
 
-// ─── Convert lat/lng to 3D position ───────────────────────────
+function isLand(imgData, lat, lng) {
+    const W = imgData.width, H = imgData.height;
+    const px = Math.floor(((lng + 180) / 360) * W) % W;
+    const py = Math.floor(((90 - lat) / 180) * H) % H;
+    return imgData.data[(py * W + px) * 4] > 128;
+}
+
+// ─── lat/lng → Three.js Vector3 ──────────────────────────────
 function latLngTo3D(lat, lng, radius) {
     const phi = (90 - lat) * (Math.PI / 180);
     const theta = (lng + 180) * (Math.PI / 180);
@@ -82,268 +97,174 @@ function latLngTo3D(lat, lng, radius) {
     );
 }
 
-// ─── Generate dots on sphere with Fibonacci distribution ──────
-function generateDots(count, radius) {
-    const dots = [];
-    const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+// Generate Fibonacci-distributed dots, tagged land vs ocean
+function makeDots(count, radius, landImg) {
+    const land = [], ocean = [];
+    const golden = Math.PI * (3 - Math.sqrt(5));
     for (let i = 0; i < count; i++) {
-        const y = 1 - (i / (count - 1)) * 2; // -1 to 1
+        const y = 1 - (i / (count - 1)) * 2;
         const r = Math.sqrt(1 - y * y);
-        const theta = goldenAngle * i;
-        const x = Math.cos(theta) * r;
-        const z = Math.sin(theta) * r;
-
-        // Convert to lat/lng to check continent
+        const th = golden * i;
+        const x = Math.cos(th) * r, z = Math.sin(th) * r;
         const lat = Math.asin(y) * (180 / Math.PI);
         const lng = Math.atan2(z, x) * (180 / Math.PI);
-        const onLand = isLand(lat, lng);
-
-        dots.push({
-            position: new THREE.Vector3(x * radius, y * radius, z * radius),
-            isLand: onLand,
-            lat,
-            lng
-        });
+        const arr = isLand(landImg, lat, lng) ? land : ocean;
+        arr.push(x * radius, y * radius, z * radius);
     }
-    return dots;
+    return { land, ocean };
 }
 
 // ═══════════════════════════════════════════════════════════════
 const InteractiveGlobe = ({ theme, isDarkMode }) => {
     const mountRef = useRef(null);
-    const sceneRef = useRef(null);
-    const rendererRef = useRef(null);
-    const cameraRef = useRef(null);
-    const globeGroupRef = useRef(null);
-    const isDragging = useRef(false);
-    const previousMousePos = useRef({ x: 0, y: 0 });
-    const rotationVelocity = useRef({ x: 0, y: 0.002 });
-    const animRef = useRef(null);
-    const [visibleCards, setVisibleCards] = useState([]);
+    const globeRef = useRef(null);
+    const dragRef = useRef(false);
+    const prevRef = useRef({ x: 0, y: 0 });
+    const rafRef = useRef(null);
+    const [cards, setCards] = useState([]);
 
-    const GLOBE_SIZE = 560;
-    const GLOBE_RADIUS = 200;
+    const SIZE = 700;
+    const R = 260;
 
     useEffect(() => {
-        const mount = mountRef.current;
-        if (!mount) return;
+        const el = mountRef.current;
+        if (!el) return;
 
-        // ── Scene setup ──
+        const landImg = buildLandMap();
+
+        // Scene
         const scene = new THREE.Scene();
-        sceneRef.current = scene;
+        const cam = new THREE.PerspectiveCamera(45, 1, 1, 2000);
+        cam.position.z = 750;
 
-        const camera = new THREE.PerspectiveCamera(45, 1, 1, 2000);
-        camera.position.z = 600;
-        cameraRef.current = camera;
+        const ren = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        ren.setSize(SIZE, SIZE);
+        ren.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        ren.setClearColor(0x000000, 0);
+        el.appendChild(ren.domElement);
 
-        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-        renderer.setSize(GLOBE_SIZE, GLOBE_SIZE);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.setClearColor(0x000000, 0);
-        rendererRef.current = renderer;
-        mount.appendChild(renderer.domElement);
+        const globe = new THREE.Group();
+        globeRef.current = globe;
+        scene.add(globe);
 
-        // ── Globe group (for rotation) ──
-        const globeGroup = new THREE.Group();
-        globeGroupRef.current = globeGroup;
-        scene.add(globeGroup);
+        // Dots
+        const { land, ocean } = makeDots(3200, R, landImg);
 
-        // ── Generate dots ──
-        const dots = generateDots(2200, GLOBE_RADIUS);
-
-        // Land dots — fully opaque, larger
-        const landPositions = [];
-        const oceanPositions = [];
-
-        for (const dot of dots) {
-            if (dot.isLand) {
-                landPositions.push(dot.position.x, dot.position.y, dot.position.z);
-            } else {
-                oceanPositions.push(dot.position.x, dot.position.y, dot.position.z);
-            }
-        }
-
-        // Land dots
-        const landGeom = new THREE.BufferGeometry();
-        landGeom.setAttribute('position', new THREE.Float32BufferAttribute(landPositions, 3));
-        const landColor = isDarkMode ? '#ffffff' : '#111111';
-        const landMaterial = new THREE.PointsMaterial({
-            color: new THREE.Color(landColor),
-            size: 2.6,
-            sizeAttenuation: true,
-            transparent: true,
-            opacity: 0.92,
+        const lGeo = new THREE.BufferGeometry();
+        lGeo.setAttribute('position', new THREE.Float32BufferAttribute(land, 3));
+        const lMat = new THREE.PointsMaterial({
+            color: new THREE.Color(isDarkMode ? '#ffffff' : '#000000'),
+            size: 3.0, sizeAttenuation: true, transparent: true, opacity: 0.95,
         });
-        const landPoints = new THREE.Points(landGeom, landMaterial);
-        globeGroup.add(landPoints);
+        globe.add(new THREE.Points(lGeo, lMat));
 
-        // Ocean dots — lighter / more transparent
-        const oceanGeom = new THREE.BufferGeometry();
-        oceanGeom.setAttribute('position', new THREE.Float32BufferAttribute(oceanPositions, 3));
-        const oceanColor = isDarkMode ? '#555555' : '#cccccc';
-        const oceanMaterial = new THREE.PointsMaterial({
-            color: new THREE.Color(oceanColor),
-            size: 1.6,
-            sizeAttenuation: true,
-            transparent: true,
-            opacity: 0.35,
+        const oGeo = new THREE.BufferGeometry();
+        oGeo.setAttribute('position', new THREE.Float32BufferAttribute(ocean, 3));
+        const oMat = new THREE.PointsMaterial({
+            color: new THREE.Color(isDarkMode ? '#444444' : '#c0c0c0'),
+            size: 1.8, sizeAttenuation: true, transparent: true, opacity: 0.22,
         });
-        const oceanPoints = new THREE.Points(oceanGeom, oceanMaterial);
-        globeGroup.add(oceanPoints);
+        globe.add(new THREE.Points(oGeo, oMat));
 
-        // ── Business location markers (small glowing spheres) ──
-        const markerGroup = new THREE.Group();
-        const markerColor = isDarkMode ? 0x8b5cf6 : 0x6366f1;
+        // Business markers
+        const mc = isDarkMode ? 0x8b5cf6 : 0x6366f1;
         businesses.forEach(b => {
-            const pos = latLngTo3D(b.lat, b.lng, GLOBE_RADIUS + 2);
-            // Inner dot
-            const dotGeom = new THREE.SphereGeometry(2.5, 8, 8);
-            const dotMat = new THREE.MeshBasicMaterial({ color: markerColor });
-            const dot = new THREE.Mesh(dotGeom, dotMat);
-            dot.position.copy(pos);
-            markerGroup.add(dot);
-            // Outer glow ring
-            const ringGeom = new THREE.SphereGeometry(5, 8, 8);
-            const ringMat = new THREE.MeshBasicMaterial({ color: markerColor, transparent: true, opacity: 0.2 });
-            const ring = new THREE.Mesh(ringGeom, ringMat);
-            ring.position.copy(pos);
-            markerGroup.add(ring);
+            const p = latLngTo3D(b.lat, b.lng, R + 3);
+            const sg = new THREE.SphereGeometry(3, 8, 8);
+            const sm = new THREE.MeshBasicMaterial({ color: mc });
+            const s = new THREE.Mesh(sg, sm); s.position.copy(p); globe.add(s);
+            const hg = new THREE.SphereGeometry(7, 8, 8);
+            const hm = new THREE.MeshBasicMaterial({ color: mc, transparent: true, opacity: 0.18 });
+            const h = new THREE.Mesh(hg, hm); h.position.copy(p); globe.add(h);
         });
-        globeGroup.add(markerGroup);
 
-        // ── Animation loop ──
-        const animate = () => {
-            // Auto-rotate
-            if (!isDragging.current) {
-                globeGroup.rotation.y += rotationVelocity.current.y;
-            }
+        // Animate
+        const tick = () => {
+            if (!dragRef.current) globe.rotation.y += 0.002;
 
-            // Project business positions to screen for cards
-            const cardData = businesses.map(b => {
-                const pos3D = latLngTo3D(b.lat, b.lng, GLOBE_RADIUS + 5);
-                // Apply globe rotation
-                const vec = pos3D.clone().applyEuler(globeGroup.rotation);
-                // Project to 2D
-                const projected = vec.clone().project(camera);
-                const screenX = (projected.x * 0.5 + 0.5) * GLOBE_SIZE;
-                const screenY = (-projected.y * 0.5 + 0.5) * GLOBE_SIZE;
-                // Check if front-facing (z < 0 in camera space means behind)
-                const camSpaceZ = vec.z;
-                const isFront = camSpaceZ > 0;
-                const depth = (camSpaceZ + GLOBE_RADIUS) / (GLOBE_RADIUS * 2);
+            const cArr = businesses.map(b => {
+                const v = latLngTo3D(b.lat, b.lng, R + 8).applyEuler(globe.rotation);
+                const p = v.clone().project(cam);
+                const depth = (v.z + R) / (R * 2);
                 return {
                     ...b,
-                    screenX,
-                    screenY,
-                    z: camSpaceZ,
-                    visible: isFront && depth > 0.4,
-                    scale: Math.max(0, Math.min(1, depth)),
+                    sx: (p.x * 0.5 + 0.5) * SIZE,
+                    sy: (-p.y * 0.5 + 0.5) * SIZE,
+                    z: v.z,
+                    ok: v.z > 30 && depth > 0.45,
+                    sc: Math.max(0, Math.min(1, depth)),
                 };
-            }).filter(c => c.visible);
+            }).filter(c => c.ok).sort((a, b) => b.z - a.z).slice(0, 4);
+            setCards(cArr);
 
-            cardData.sort((a, b) => b.z - a.z);
-            setVisibleCards(cardData.slice(0, 4));
-
-            renderer.render(scene, camera);
-            animRef.current = requestAnimationFrame(animate);
+            ren.render(scene, cam);
+            rafRef.current = requestAnimationFrame(tick);
         };
-        animRef.current = requestAnimationFrame(animate);
+        rafRef.current = requestAnimationFrame(tick);
 
-        // ── Cleanup ──
         return () => {
-            cancelAnimationFrame(animRef.current);
-            if (mount.contains(renderer.domElement)) {
-                mount.removeChild(renderer.domElement);
-            }
-            renderer.dispose();
-            landGeom.dispose();
-            landMaterial.dispose();
-            oceanGeom.dispose();
-            oceanMaterial.dispose();
+            cancelAnimationFrame(rafRef.current);
+            if (el.contains(ren.domElement)) el.removeChild(ren.domElement);
+            ren.dispose(); lGeo.dispose(); lMat.dispose(); oGeo.dispose(); oMat.dispose();
         };
     }, [isDarkMode]);
 
-    // ── Mouse interaction ──
-    const handleMouseDown = useCallback((e) => {
-        isDragging.current = true;
-        previousMousePos.current = { x: e.clientX, y: e.clientY };
+    // Mouse
+    const dn = useCallback(e => { dragRef.current = true; prevRef.current = { x: e.clientX, y: e.clientY }; }, []);
+    const mv = useCallback(e => {
+        if (!dragRef.current || !globeRef.current) return;
+        const g = globeRef.current;
+        g.rotation.y += (e.clientX - prevRef.current.x) * 0.004;
+        g.rotation.x = Math.max(-0.6, Math.min(0.6, g.rotation.x + (e.clientY - prevRef.current.y) * 0.004));
+        prevRef.current = { x: e.clientX, y: e.clientY };
     }, []);
+    const up = useCallback(() => { dragRef.current = false; }, []);
 
-    const handleMouseMove = useCallback((e) => {
-        if (!isDragging.current || !globeGroupRef.current) return;
-        const dx = e.clientX - previousMousePos.current.x;
-        const dy = e.clientY - previousMousePos.current.y;
-        globeGroupRef.current.rotation.y += dx * 0.005;
-        globeGroupRef.current.rotation.x += dy * 0.005;
-        // Clamp x rotation
-        globeGroupRef.current.rotation.x = Math.max(-0.8, Math.min(0.8, globeGroupRef.current.rotation.x));
-        previousMousePos.current = { x: e.clientX, y: e.clientY };
+    // Touch
+    const td = useCallback(e => { if (e.touches.length === 1) { dragRef.current = true; prevRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; } }, []);
+    const tm = useCallback(e => {
+        if (!dragRef.current || !globeRef.current || e.touches.length !== 1) return;
+        const t = e.touches[0], g = globeRef.current;
+        g.rotation.y += (t.clientX - prevRef.current.x) * 0.004;
+        g.rotation.x = Math.max(-0.6, Math.min(0.6, g.rotation.x + (t.clientY - prevRef.current.y) * 0.004));
+        prevRef.current = { x: t.clientX, y: t.clientY };
     }, []);
-
-    const handleMouseUp = useCallback(() => {
-        isDragging.current = false;
-    }, []);
+    const tu = useCallback(() => { dragRef.current = false; }, []);
 
     return (
-        <div style={{ position: 'relative', width: `${GLOBE_SIZE}px`, height: `${GLOBE_SIZE}px` }}>
-            <div
-                ref={mountRef}
-                style={{
-                    width: `${GLOBE_SIZE}px`,
-                    height: `${GLOBE_SIZE}px`,
-                    cursor: isDragging.current ? 'grabbing' : 'grab',
-                }}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
+        <div style={{ position: 'relative', width: `${SIZE}px`, height: `${SIZE}px`, flexShrink: 0 }}>
+            <div ref={mountRef} style={{ width: `${SIZE}px`, height: `${SIZE}px`, cursor: 'grab' }}
+                 onMouseDown={dn} onMouseMove={mv} onMouseUp={up} onMouseLeave={up}
+                 onTouchStart={td} onTouchMove={tm} onTouchEnd={tu}
             />
 
-            {/* Floating business cards */}
-            {visibleCards.map((card) => (
-                <div
-                    key={card.name}
-                    className="globe-card"
-                    style={{
-                        position: 'absolute',
-                        left: `${card.screenX}px`,
-                        top: `${card.screenY}px`,
-                        transform: `translate(-50%, -120%) scale(${0.7 + card.scale * 0.3})`,
-                        opacity: 0.7 + card.scale * 0.3,
-                        backgroundColor: isDarkMode ? 'rgba(20,20,20,0.9)' : 'rgba(255,255,255,0.93)',
-                        backdropFilter: 'blur(14px)',
-                        borderRadius: '13px',
-                        padding: '0.7rem 0.85rem',
-                        border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
-                        boxShadow: '0 4px 24px rgba(0,0,0,0.14)',
-                        pointerEvents: 'none',
-                        transition: 'opacity 0.5s ease, transform 0.5s ease',
-                        whiteSpace: 'nowrap',
-                        zIndex: Math.round(card.z + 200),
-                        maxWidth: '210px',
-                    }}
-                >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.2rem' }}>
-                        <span style={{
-                            fontWeight: '600', fontSize: '0.76rem', color: theme.text,
-                            overflow: 'hidden', textOverflow: 'ellipsis',
-                            fontFamily: "'Poppins', sans-serif"
-                        }}>{card.name}</span>
+            {cards.map(c => (
+                <div key={c.name} className="globe-card" style={{
+                    position: 'absolute',
+                    left: `${c.sx}px`, top: `${c.sy}px`,
+                    transform: `translate(-50%, -115%) scale(${0.72 + c.sc * 0.28})`,
+                    opacity: 0.65 + c.sc * 0.35,
+                    backgroundColor: isDarkMode ? 'rgba(18,18,18,0.92)' : 'rgba(255,255,255,0.94)',
+                    backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+                    borderRadius: '14px', padding: '0.65rem 0.8rem',
+                    border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)'}`,
+                    boxShadow: isDarkMode ? '0 8px 32px rgba(0,0,0,0.4)' : '0 4px 24px rgba(0,0,0,0.1)',
+                    pointerEvents: 'none', transition: 'opacity 0.6s ease, transform 0.6s ease',
+                    whiteSpace: 'nowrap', zIndex: Math.round(c.z + 300), maxWidth: '220px',
+                }}>
+                    <div style={{ marginBottom: '0.15rem' }}>
+                        <span style={{ fontWeight: '600', fontSize: '0.78rem', color: theme.text, fontFamily: "'Poppins', sans-serif" }}>{c.name}</span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', marginBottom: '0.2rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', marginBottom: '0.15rem' }}>
                         <MapPin size={9} color={theme.textMuted} />
-                        <span style={{ fontSize: '0.62rem', color: theme.textMuted, fontFamily: "'Poppins', sans-serif" }}>{card.location}</span>
+                        <span style={{ fontSize: '0.63rem', color: theme.textMuted, fontFamily: "'Poppins', sans-serif" }}>{c.location}</span>
                     </div>
                     <div style={{ display: 'flex', gap: '1px', alignItems: 'center' }}>
-                        {[1, 2, 3, 4, 5].map(s => (
-                            <Star key={s} size={9}
-                                fill={s <= Math.floor(card.rating) ? '#f59e0b' : 'none'}
-                                color="#f59e0b"
-                            />
-                        ))}
-                        <span style={{ fontSize: '0.58rem', color: theme.textMuted, marginLeft: '0.2rem', fontFamily: "'Poppins', sans-serif" }}>
-                            {card.rating}
-                        </span>
+                        {[1,2,3,4,5].map(s => <Star key={s} size={9} fill={s <= Math.floor(c.rating) ? '#f59e0b' : 'none'} color="#f59e0b" />)}
+                        <span style={{ fontSize: '0.58rem', color: theme.textMuted, marginLeft: '0.2rem', fontFamily: "'Poppins', sans-serif" }}>{c.rating}</span>
+                    </div>
+                    <div style={{ marginTop: '0.15rem' }}>
+                        <span style={{ fontSize: '0.58rem', color: theme.textMuted, fontFamily: "'Poppins', sans-serif", fontStyle: 'italic' }}>{c.desc}</span>
                     </div>
                 </div>
             ))}
