@@ -1,0 +1,7 @@
+{
+  "name": "trial-website-fbla",
+  "private": true,
+  "scripts": {
+    "dev": "cd byte-sized && npm run dev"
+  }
+}
