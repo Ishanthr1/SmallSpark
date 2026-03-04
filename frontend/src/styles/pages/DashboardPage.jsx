@@ -5,7 +5,7 @@ import {MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents} from 'reac
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
-    Compass, Heart, Tag, Star, Settings, Search, MapPin, X, ChevronDown,
+    Compass, Heart, Tag, Star, Settings, Search, MapPin, X, ChevronDown, LogOut, Trash2, Users, Save,
     ChevronLeft, ChevronRight, Menu, Utensils, Home, Car, Stethoscope,
     Plane, MoreHorizontal, Scissors, Wrench, Dumbbell, Music, ShoppingBag,
     Coffee, Pizza, Truck, Flame, Waves, Tent, Bike, Hotel, Sparkles, Zap,
@@ -18,8 +18,9 @@ import {
 } from 'lucide-react';
 
 import DealsContent from './DealsPage';
+import { getPreferences, setPreferences } from '../../lib/preferences';
 
-const API = 'http://localhost:5000/api';
+const API = 'http://localhost:5001/api';
 
 /* ─── Fetch helper ─────────────────────────────────────────── */
 async function apiFetch(url) {
@@ -1269,6 +1270,74 @@ const DiscoverContent = ({th, favs, toggleFav}) => {
 
 
 /* ─── Other tabs ───────────────────────────────────────────── */
+const PH=({th,icon:I,title,desc})=>(<div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',padding:'3rem',textAlign:'center'}}><I size={44} color={th.textMuted} style={{marginBottom:'1rem',opacity:0.4}}/><h2 style={{fontSize:'1.1rem',fontWeight:'600',color:th.text,marginBottom:'0.3rem'}}>{title}</h2><p style={{fontSize:'0.85rem',color:th.textMuted}}>{desc}</p></div>);
+const CUISINE_OPTIONS=['Italian','Mexican','Chinese','Japanese','Indian','Thai','Vietnamese','Korean','Mediterranean','American','French','Vegan','Vegetarian','Seafood','BBQ','Bakeries','Coffee & Cafes','Pizza','Breakfast & Brunch'];
+const CATEGORY_OPTIONS=['Restaurants','Home & Garden','Auto Services','Health & Beauty','Travel & Activities','Nightlife','Shopping','Gyms','Hotels'];
+const PRICE_LEVELS=[{v:1,l:'$'},{v:2,l:'$$'},{v:3,l:'$$$'},{v:4,l:'$$$$'}];
+const DISTANCE_OPTIONS=[{v:1600,l:'Walking (1 mi)'},{v:3200,l:'Biking (2 mi)'},{v:5000,l:"Bird's-eye (3 mi)"},{v:8000,l:'Driving (5 mi)'},{v:15000,l:'Far (10 mi)'}];
+
+const SettingsContent=({th,isDark,setDark,onSignOut,onDeleteAccount,userId})=>{
+const[cuisines,setCuisines]=useState([]);
+const[categories,setCategories]=useState([]);
+const[priceLevel,setPriceLevel]=useState(null);
+const[distanceRadius,setDistanceRadius]=useState(5000);
+const[loaded,setLoaded]=useState(false);
+const[saving,setSaving]=useState(false);
+const[saved,setSaved]=useState(false);
+
+useEffect(()=>{if(!userId)return;let cancel=false;
+getPreferences(userId).then(row=>{if(cancel)return;const p=row?.preferences??{};
+setCuisines(p.cuisines??[]);setCategories(p.categories??[]);setPriceLevel(p.price_level??null);setDistanceRadius(p.distance_radius_meters??5000);setLoaded(true)}).catch(e=>{console.error(e);setLoaded(true)});
+return()=>{cancel=true}},[userId]);
+
+const handleSave=async()=>{if(!userId||saving)return;setSaving(true);setSaved(false);
+try{await setPreferences(userId,{cuisines,categories,price_level:priceLevel,distance_radius_meters:distanceRadius});setSaved(true);setTimeout(()=>setSaved(false),2000)}catch(e){console.error(e)}finally{setSaving(false)}};
+
+const toggleChip=(arr,setArr,val)=>setArr(prev=>prev.includes(val)?prev.filter(v=>v!==val):[...prev,val]);
+
+const chipStyle=(active,th)=>({display:'inline-flex',alignItems:'center',padding:'0.35rem 0.7rem',borderRadius:'20px',border:`1px solid ${active?th.accent:th.border}`,backgroundColor:active?th.accent:'transparent',color:active?th.accentText:th.textSecondary,cursor:'pointer',fontFamily:"'Poppins',sans-serif",fontSize:'0.76rem',fontWeight:active?'600':'450',transition:'0.15s',margin:'0 0.3rem 0.3rem 0'});
+
+return(<div style={{padding:'2rem 2.5rem 2rem 3rem',maxWidth:'640px',margin:0,overflowY:'auto',height:'100%',textAlign:'left'}}>
+<h1 style={{fontSize:'1.5rem',fontWeight:'700',color:th.text,marginBottom:'1.5rem'}}>Preferences</h1>
+
+{/* App toggles */}
+{[{title:'Dark Mode',desc:'Switch themes',isOn:isDark,fn:()=>setDark(!isDark)},{title:'Notifications',desc:'Deal & review alerts',isOn:true,fn:()=>{}},{title:'Location Tracking',desc:'Nearby businesses',isOn:true,fn:()=>{}}].map((it,i)=>(
+<div key={i} style={{backgroundColor:th.cardBg,border:`1px solid ${th.border}`,borderRadius:'12px',padding:'1.1rem 1.25rem',marginBottom:'0.75rem',display:'flex',justifyContent:'space-between',alignItems:'center',minWidth:'320px'}}>
+<div><h3 style={{fontSize:'0.88rem',fontWeight:'600',color:th.text,margin:'0 0 0.1rem'}}>{it.title}</h3><p style={{fontSize:'0.72rem',color:th.textMuted,margin:0}}>{it.desc}</p></div>
+<button onClick={it.fn} style={{width:'42px',height:'24px',borderRadius:'12px',border:'none',backgroundColor:it.isOn?th.accent:th.border,cursor:'pointer',position:'relative',flexShrink:0}}><div style={{width:'18px',height:'18px',borderRadius:'50%',backgroundColor:it.isOn?th.accentText:'#fff',position:'absolute',top:'3px',left:it.isOn?'21px':'3px',transition:'0.3s',boxShadow:'0 1px 3px rgba(0,0,0,0.15)'}}/></button></div>))}
+
+{/* Taste Profile */}
+<div style={{borderTop:`1px solid ${th.border}`,marginTop:'1.5rem',paddingTop:'1.5rem'}}>
+<h2 style={{fontSize:'1.1rem',fontWeight:'700',color:th.text,marginBottom:'1rem'}}>Taste Profile</h2>
+
+<div style={{marginBottom:'1.2rem'}}>
+<h3 style={{fontSize:'0.85rem',fontWeight:'600',color:th.text,marginBottom:'0.5rem'}}>Favorite Cuisines</h3>
+<div style={{display:'flex',flexWrap:'wrap'}}>{CUISINE_OPTIONS.map(c=>(
+<button key={c} onClick={()=>toggleChip(cuisines,setCuisines,c)} style={chipStyle(cuisines.includes(c),th)}>{c}</button>))}</div></div>
+
+<div style={{marginBottom:'1.2rem'}}>
+<h3 style={{fontSize:'0.85rem',fontWeight:'600',color:th.text,marginBottom:'0.5rem'}}>Business Categories</h3>
+<div style={{display:'flex',flexWrap:'wrap'}}>{CATEGORY_OPTIONS.map(c=>(
+<button key={c} onClick={()=>toggleChip(categories,setCategories,c)} style={chipStyle(categories.includes(c),th)}>{c}</button>))}</div></div>
+
+<div style={{marginBottom:'1.2rem'}}>
+<h3 style={{fontSize:'0.85rem',fontWeight:'600',color:th.text,marginBottom:'0.5rem'}}>Price Level</h3>
+<div style={{display:'flex',gap:'0.4rem'}}>{PRICE_LEVELS.map(p=>(
+<button key={p.v} onClick={()=>setPriceLevel(priceLevel===p.v?null:p.v)} style={{padding:'0.4rem 1rem',borderRadius:'8px',border:`1px solid ${priceLevel===p.v?th.accent:th.border}`,backgroundColor:priceLevel===p.v?th.accent:'transparent',color:priceLevel===p.v?th.accentText:th.textSecondary,cursor:'pointer',fontFamily:"'Poppins',sans-serif",fontSize:'0.85rem',fontWeight:priceLevel===p.v?'700':'500',transition:'0.15s'}}>{p.l}</button>))}</div></div>
+
+<div style={{marginBottom:'1.2rem'}}>
+<h3 style={{fontSize:'0.85rem',fontWeight:'600',color:th.text,marginBottom:'0.5rem'}}>Preferred Distance</h3>
+<div style={{display:'flex',flexWrap:'wrap',gap:'0.3rem'}}>{DISTANCE_OPTIONS.map(d=>(
+<button key={d.v} onClick={()=>setDistanceRadius(d.v)} style={{padding:'0.35rem 0.7rem',borderRadius:'20px',border:`1px solid ${distanceRadius===d.v?th.accent:th.border}`,backgroundColor:distanceRadius===d.v?th.accent:'transparent',color:distanceRadius===d.v?th.accentText:th.textSecondary,cursor:'pointer',fontFamily:"'Poppins',sans-serif",fontSize:'0.76rem',fontWeight:distanceRadius===d.v?'600':'450',transition:'0.15s'}}>{d.l}</button>))}</div></div>
+
+<button onClick={handleSave} disabled={saving||!loaded} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'0.5rem',width:'100%',maxWidth:'320px',padding:'0.7rem 1rem',borderRadius:'10px',border:'none',backgroundColor:saved?'#16a34a':th.accent,color:th.accentText,cursor:saving?'not-allowed':'pointer',fontFamily:"'Poppins',sans-serif",fontSize:'0.88rem',fontWeight:'600',opacity:loaded?1:0.5,transition:'0.2s'}}><Save size={18}/>{saving?'Saving...':saved?'Saved!':'Save Taste Profile'}</button>
+</div>
+
+{/* Account actions */}
+<div style={{borderTop:`1px solid ${th.border}`,marginTop:'1.5rem',paddingTop:'1.5rem'}}>
+<button onClick={onSignOut} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'0.5rem',width:'100%',maxWidth:'320px',padding:'0.65rem 1rem',borderRadius:'10px',border:`1px solid ${th.border}`,backgroundColor:'transparent',color:th.textSecondary,cursor:'pointer',fontFamily:"'Poppins',sans-serif",fontSize:'0.85rem',fontWeight:'500'}}><LogOut size={18}/>Sign out</button>
+<button onClick={onDeleteAccount} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'0.5rem',width:'100%',maxWidth:'320px',padding:'0.65rem 1rem',marginTop:'0.6rem',borderRadius:'10px',border:'none',backgroundColor:'#dc2626',color:'#fff',cursor:'pointer',fontFamily:"'Poppins',sans-serif",fontSize:'0.85rem',fontWeight:'600'}}><Trash2 size={18}/>Delete account</button>
+</div></div>)};
 const PH = ({th, icon: I, title, desc}) => (<div style={{
     display: 'flex',
     flexDirection: 'column',
@@ -1338,6 +1407,39 @@ const SettingsContent = ({th, isDark, setDark}) => (
 /* ═══════════════════════════════════════════════════════════════
    MAIN DASHBOARD PAGE
    ═══════════════════════════════════════════════════════════════ */
+const DashboardPage=()=>{
+    const{user}=useUser(); const {signOut}=useClerk(); const nav=useNavigate();
+    const[isDark,setDark]=useState(true);
+    const[tab,setTab]=useState('discover');
+    const[sbO,setSbO]=useState(false);
+    const[favs,setFavs]=useState(new Set());
+    const th=isDark?dark:light; const sw=sbO?230:58;
+    const tF=useCallback(id=>{setFavs(p=>{const n=new Set(p);n.has(id)?n.delete(id):n.add(id);return n})},[]);
+
+    const content=()=>{switch(tab){
+        case'discover':return<DiscoverContent th={th} favs={favs} toggleFav={tF}/>;
+        case'favorites':return<PH th={th} icon={Heart} title="Favorites" desc="Heart businesses to save them here"/>;
+        case'deals':return<DealsContent th={th}/>;
+        case'reviews':return<PH th={th} icon={Star} title="My Reviews" desc="Your reviews show here"/>;
+        case'settings':return<SettingsContent th={th} isDark={isDark} setDark={setDark} userId={user?.id} onSignOut={()=>signOut(()=>nav('/'))} onDeleteAccount={()=>{if(window.confirm('Are you sure you want to delete your account? This cannot be undone.')){signOut(()=>nav('/'));}}}/>;
+        default:return<DiscoverContent th={th} favs={favs} toggleFav={tF}/>}};
+
+    return(<div style={{display:'flex',height:'100vh',width:'100vw',overflow:'hidden',fontFamily:"'Poppins',-apple-system,sans-serif",backgroundColor:th.bg,color:th.text}}>
+    {/* Sidebar */}
+    <aside style={{width:`${sw}px`,minWidth:`${sw}px`,backgroundColor:th.sidebar,borderRight:`1px solid ${th.sidebarBorder}`,display:'flex',flexDirection:'column',padding:sbO?'0.9rem 0.5rem':'0.9rem 0.3rem',transition:'all 0.22s cubic-bezier(0.4,0,0.2,1)',overflow:'hidden',zIndex:70}}>
+    <div style={{display:'flex',alignItems:'center',justifyContent:sbO?'space-between':'center',padding:sbO?'0.3rem 0.4rem':'0.3rem 0',marginBottom:'1.2rem'}}>
+    {sbO?<div style={{cursor:'pointer'}} onClick={()=>nav('/')}><img src={isDark?'/logo_dark.png':'/logo_light.png'} alt="Spark" style={{height:'24px'}}/></div>:<div style={{cursor:'pointer'}} onClick={()=>nav('/')}><img src="/logo.png" alt="Spark" style={{height:'24px',width:'24px',objectFit:'contain'}}/></div>}
+    {sbO&&<button onClick={()=>setSbO(false)} style={{background:'none',border:'none',cursor:'pointer',color:th.textMuted,display:'flex',padding:'0.2rem'}}><ChevronLeft size={17}/></button>}</div>
+    <nav style={{display:'flex',flexDirection:'column',gap:'0.15rem',flex:1}}>
+    {!sbO&&<button onClick={()=>setSbO(true)} style={{display:'flex',alignItems:'center',justifyContent:'center',padding:'0.5rem',borderRadius:'9px',border:'none',cursor:'pointer',backgroundColor:'transparent',color:th.textMuted,marginBottom:'0.4rem'}} onMouseEnter={e=>e.currentTarget.style.backgroundColor=th.hoverBg} onMouseLeave={e=>e.currentTarget.style.backgroundColor='transparent'}><Menu size={18}/></button>}
+    {navTabs.map(t=>{const a=tab===t.id,I=t.icon;return(<button key={t.id} onClick={()=>setTab(t.id)} title={!sbO?t.label:undefined} style={{display:'flex',alignItems:'center',justifyContent:sbO?'flex-start':'center',gap:'0.6rem',padding:sbO?'0.5rem 0.6rem':'0.5rem',borderRadius:'9px',border:'none',cursor:'pointer',fontFamily:"'Poppins',sans-serif",fontSize:'0.83rem',fontWeight:a?'600':'450',color:a?th.activeAccent:th.textSecondary,backgroundColor:a?th.activeBg:'transparent',transition:'0.12s',width:'100%'}} onMouseEnter={e=>{if(!a)e.currentTarget.style.backgroundColor=th.hoverBg}} onMouseLeave={e=>{if(!a)e.currentTarget.style.backgroundColor='transparent'}}><I size={18}/>{sbO&&<span>{t.label}</span>}</button>)})}</nav>
+    <div style={{display:'flex',flexDirection:'column',gap:'0.1rem'}}>
+    <button onClick={()=>nav('/friends')} title={!sbO?'Friends':undefined} style={{display:'flex',alignItems:'center',justifyContent:sbO?'flex-start':'center',gap:'0.6rem',padding:sbO?'0.5rem 0.6rem':'0.5rem',borderRadius:'9px',border:'none',cursor:'pointer',color:th.textMuted,backgroundColor:'transparent',fontFamily:"'Poppins',sans-serif",fontSize:'0.8rem',width:'100%',fontWeight:'450'}} onMouseEnter={e=>e.currentTarget.style.backgroundColor=th.hoverBg} onMouseLeave={e=>e.currentTarget.style.backgroundColor='transparent'}><Users size={18}/>{sbO&&<span>Friends</span>}</button>
+    <button onClick={()=>setTab('settings')} title={!sbO?'Preferences':undefined} style={{display:'flex',alignItems:'center',justifyContent:sbO?'flex-start':'center',gap:'0.6rem',padding:sbO?'0.5rem 0.6rem':'0.5rem',borderRadius:'9px',border:'none',cursor:'pointer',color:tab==='settings'?th.activeAccent:th.textMuted,backgroundColor:tab==='settings'?th.activeBg:'transparent',fontFamily:"'Poppins',sans-serif",fontSize:'0.8rem',width:'100%',fontWeight:tab==='settings'?'600':'450'}} onMouseEnter={e=>{if(tab!=='settings')e.currentTarget.style.backgroundColor=th.hoverBg}} onMouseLeave={e=>{if(tab!=='settings')e.currentTarget.style.backgroundColor='transparent'}}><Settings size={18}/>{sbO&&<span>Preferences</span>}</button>
+    <div style={{borderTop:`1px solid ${th.sidebarBorder}`,paddingTop:'0.5rem',marginTop:'0.2rem',display:'flex',alignItems:'center',justifyContent:sbO?'flex-start':'center',gap:'0.4rem',padding:sbO?'0.5rem 0.6rem 0.2rem':'0.5rem 0 0.2rem'}}>
+    <UserButton afterSignOutUrl="/" appearance={{elements:{avatarBox:{width:'28px',height:'28px'}}}}/>
+    {sbO&&<p style={{fontSize:'0.74rem',fontWeight:'600',color:th.text,margin:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{user?.fullName||user?.firstName||'User'}</p>}</div></div></aside>
+    <main style={{flex:1,overflow:'hidden',display:'flex',flexDirection:'column',backgroundColor:tab==='discover'?th.bg:th.bgAlt}}>{content()}</main></div>)};
 const DashboardPage = () => {
     const {user} = useUser();
     const nav = useNavigate();
