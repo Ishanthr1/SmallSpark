@@ -19,7 +19,7 @@ import {
 
 import DealsContent from './DealsPage';
 import FriendsPage from './FriendsPage';
-import { getPreferences, setPreferences } from '../../lib/preferences';
+import { getPreferences, setPreferences, getFavorites, setFavorites } from '../../lib/preferences';
 
 const API = 'http://localhost:5000/api';
 
@@ -517,7 +517,7 @@ const BizCard = ({biz, th, hov, onHov, onFav, isFav, onNavigate}) => {
                     </div>}
                     <button onClick={e => {
                         e.stopPropagation();
-                        onFav(biz.id)
+                        onFav(biz.id, biz)
                     }} style={{
                         marginLeft: 'auto',
                         background: 'none',
@@ -1490,14 +1490,43 @@ const DashboardPage = () => {
     const [tab, setTab] = useState('discover');
     const [sbO, setSbO] = useState(false);
     const [favs, setFavs] = useState(new Set());
+    const [favBusinesses, setFavBusinesses] = useState([]);
+    const favsLoadedRef = useRef(false);
     const th = isDark ? dark : light;
     const sw = sbO ? 230 : 58;
-    const tF = useCallback(id => {
+
+    useEffect(() => {
+        if (!user?.id) return;
+        getFavorites(user.id).then(arr => {
+            setFavBusinesses(Array.isArray(arr) ? arr : []);
+            setFavs(new Set((Array.isArray(arr) ? arr : []).map(b => b.id)));
+            setTimeout(() => { favsLoadedRef.current = true; }, 0);
+        }).catch(() => { favsLoadedRef.current = true; });
+    }, [user?.id]);
+
+    useEffect(() => {
+        if (user?.id) return;
+        favsLoadedRef.current = false;
+        setFavs(new Set());
+        setFavBusinesses([]);
+    }, [user?.id]);
+
+    useEffect(() => {
+        if (!user?.id || !favsLoadedRef.current) return;
+        setFavorites(user.id, favBusinesses).catch(() => {});
+    }, [user?.id, favBusinesses]);
+
+    const tF = useCallback((id, biz) => {
         setFavs(p => {
             const n = new Set(p);
-            n.has(id) ? n.delete(id) : n.add(id);
-            return n
-        })
+            const isRemoving = n.has(id);
+            if (isRemoving) n.delete(id);
+            else n.add(id);
+            setFavBusinesses(fb =>
+                isRemoving ? fb.filter(b => b.id !== id) : (biz ? [...fb.filter(b => b.id !== id), biz] : fb)
+            );
+            return n;
+        });
     }, []);
 
     const content = () => {
@@ -1505,7 +1534,19 @@ const DashboardPage = () => {
             case 'discover':
                 return <DiscoverContent th={th} favs={favs} toggleFav={tF}/>;
             case 'favorites':
-                return <PH th={th} icon={Heart} title="Favorites" desc="Heart businesses to save them here"/>;
+                return favBusinesses.length === 0
+                    ? <PH th={th} icon={Heart} title="Favorites" desc="Heart businesses in Discover to save them here"/>
+                    : <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+                        <div style={{ padding: '0.6rem 1rem', borderBottom: `1px solid ${th.border}`, backgroundColor: th.bg }}>
+                            <h2 style={{ fontSize: '1rem', fontWeight: '600', color: th.text, margin: 0 }}>Favorites</h2>
+                            <p style={{ fontSize: '0.78rem', color: th.textMuted, margin: '0.2rem 0 0' }}>{favBusinesses.length} saved</p>
+                        </div>
+                        <div style={{ flex: 1, overflowY: 'auto' }}>
+                            {favBusinesses.map(b => <BizCard key={b.id} biz={b} th={th} hov={false} onHov={() => {}}
+                                onFav={tF} isFav={true}
+                                onNavigate={(name) => window.location.href = `/business/${encodeURIComponent(name)}`} />)}
+                        </div>
+                    </div>;
             case 'deals':
                 return <DealsContent th={th}/>;
             case 'reviews':

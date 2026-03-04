@@ -52,3 +52,29 @@ export async function setPreferences(clerkUserId, preferences) {
   if (error) throw error;
   return data;
 }
+
+const FAVORITES_KEY = 'favorites';
+
+/**
+ * Get saved favorite businesses for a Clerk user.
+ * @param {string} clerkUserId - From useUser().id
+ * @returns {Promise<Array<object>>} Array of business objects (or [] if none)
+ */
+export async function getFavorites(clerkUserId) {
+  if (!clerkUserId) return [];
+  const row = await getPreferences(clerkUserId);
+  const list = row?.preferences?.[FAVORITES_KEY];
+  return Array.isArray(list) ? list : [];
+}
+
+/**
+ * Save favorite businesses for a Clerk user.
+ * @param {string} clerkUserId - From useUser().id
+ * @param {Array<object>} favorites - Array of business objects to save
+ * @returns {Promise<object>} Updated preferences from Supabase
+ */
+export async function setFavorites(clerkUserId, favorites) {
+  if (!clerkUserId) throw new Error('setFavorites requires clerkUserId');
+  if (!Array.isArray(favorites)) throw new Error('setFavorites requires an array');
+  return setPreferences(clerkUserId, { [FAVORITES_KEY]: favorites });
+}
