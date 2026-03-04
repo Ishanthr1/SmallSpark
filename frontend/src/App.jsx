@@ -21,6 +21,7 @@ function SyncUser() {
     }, [isSignedIn, user]);
     return null;
 }
+import BusinessPage from './styles/pages/BusinessPage';
 
 function App() {
     return (
@@ -72,6 +73,23 @@ function App() {
                         </>
                     }
                 />
+
+                {/* Business Detail Page — uses Google Place ID or name as param */}
+                <Route
+                    path="/business/:id"
+                    element={
+                        <>
+                            <SignedIn>
+                                <BusinessPage />
+                            </SignedIn>
+                            <SignedOut>
+                                <RedirectToSignIn />
+                            </SignedOut>
+                        </>
+                    }
+                />
+
+                {/* Add more routes as needed */}
             </Routes>
         </Router>
     );
