@@ -20,7 +20,7 @@ import {
     Dumbbell, Music, Flame, Zap, Award, Coffee, ShoppingBag, Ticket
 } from 'lucide-react';
 
-const API = 'http://localhost:5000/api';
+const API = 'http://localhost:5001/api';
 
 /* ─── Curated deals database (real UT businesses with realistic pricing) */
 const CURATED_DEALS = [
