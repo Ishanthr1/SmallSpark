@@ -205,200 +205,200 @@ function FlyTo({c, z}) {
 }
 
 /* ─── Category Bar with AI Search button ───────────────────── */
-const CatBar = ({ th, onSel, sel, onAISearch }) => {
-  const [h, sH] = useState(null);
-  const t = useRef(null);
+const CatBar = ({th, onSel, sel, onAISearch}) => {
+    const [h, sH] = useState(null);
+    const t = useRef(null);
 
-  return (
-    <div
-      style={{
-        backgroundColor: th.categoryBar,
-        borderBottom: `1px solid ${th.categoryBorder}`,
-        position: "relative",
-        zIndex: 60,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          padding: "0.35rem 1rem",
-          alignItems: "center",
-        }}
-      >
-        {mainCategories.map((c) => {
-          const o = h === c.id;
-
-          return (
+    return (
+        <div
+            style={{
+                backgroundColor: th.categoryBar,
+                borderBottom: `1px solid ${th.categoryBorder}`,
+                position: "relative",
+                zIndex: 60,
+            }}
+        >
             <div
-              key={c.id}
-              style={{ position: "relative" }}
-              onMouseEnter={() => {
-                clearTimeout(t.current);
-                sH(c.id);
-              }}
-              onMouseLeave={() => {
-                t.current = setTimeout(() => sH(null), 200);
-              }}
-            >
-              <button
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.3rem",
-                  padding: "0.7rem 0.8rem",
-                  fontSize: "0.82rem",
-                  fontWeight: "500",
-                  color: o ? th.text : th.textSecondary,
-                  backgroundColor: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  fontFamily: "'Poppins',sans-serif",
-                  whiteSpace: "nowrap",
-                  borderBottom: o
-                    ? `2px solid ${th.accent}`
-                    : "2px solid transparent",
+                    display: "flex",
+                    padding: "0.35rem 1rem",
+                    alignItems: "center",
                 }}
-              >
-                {c.label}
-                <ChevronDown
-                  size={12}
-                  style={{
-                    transform: o ? "rotate(180deg)" : "",
-                    transition: "0.2s",
-                  }}
-                />
-              </button>
-
-              {o && (
-                <div
-                  onMouseEnter={() => {
-                    clearTimeout(t.current);
-                    sH(c.id);
-                  }}
-                  onMouseLeave={() => {
-                    t.current = setTimeout(() => sH(null), 200);
-                  }}
-                  style={{
-                    position: "absolute",
-                    top: "100%",
-                    left: 0,
-                    backgroundColor: th.dropdownBg,
-                    border: `1px solid ${th.border}`,
-                    borderRadius: "12px",
-                    padding: "0.65rem",
-                    boxShadow: "0 12px 40px rgba(0,0,0,0.12)",
-                    zIndex: 100,
-                    minWidth: "360px",
-                    display: "grid",
-                    gridTemplateColumns: "repeat(2,1fr)",
-                    gap: "0.08rem",
-                  }}
-                >
-                  {c.subs.map((s) => {
-                    const I = s.icon;
-                    const sl = sel === s.name;
+            >
+                {mainCategories.map((c) => {
+                    const o = h === c.id;
 
                     return (
-                      <button
-                        key={s.name}
-                        onClick={() => {
-                          onSel(sl ? null : s.name);
-                          sH(null);
-                        }}
+                        <div
+                            key={c.id}
+                            style={{position: "relative"}}
+                            onMouseEnter={() => {
+                                clearTimeout(t.current);
+                                sH(c.id);
+                            }}
+                            onMouseLeave={() => {
+                                t.current = setTimeout(() => sH(null), 200);
+                            }}
+                        >
+                            <button
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "0.3rem",
+                                    padding: "0.7rem 0.8rem",
+                                    fontSize: "0.82rem",
+                                    fontWeight: "500",
+                                    color: o ? th.text : th.textSecondary,
+                                    backgroundColor: "transparent",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    fontFamily: "'Poppins',sans-serif",
+                                    whiteSpace: "nowrap",
+                                    borderBottom: o
+                                        ? `2px solid ${th.accent}`
+                                        : "2px solid transparent",
+                                }}
+                            >
+                                {c.label}
+                                <ChevronDown
+                                    size={12}
+                                    style={{
+                                        transform: o ? "rotate(180deg)" : "",
+                                        transition: "0.2s",
+                                    }}
+                                />
+                            </button>
+
+                            {o && (
+                                <div
+                                    onMouseEnter={() => {
+                                        clearTimeout(t.current);
+                                        sH(c.id);
+                                    }}
+                                    onMouseLeave={() => {
+                                        t.current = setTimeout(() => sH(null), 200);
+                                    }}
+                                    style={{
+                                        position: "absolute",
+                                        top: "100%",
+                                        left: 0,
+                                        backgroundColor: th.dropdownBg,
+                                        border: `1px solid ${th.border}`,
+                                        borderRadius: "12px",
+                                        padding: "0.65rem",
+                                        boxShadow: "0 12px 40px rgba(0,0,0,0.12)",
+                                        zIndex: 100,
+                                        minWidth: "360px",
+                                        display: "grid",
+                                        gridTemplateColumns: "repeat(2,1fr)",
+                                        gap: "0.08rem",
+                                    }}
+                                >
+                                    {c.subs.map((s) => {
+                                        const I = s.icon;
+                                        const sl = sel === s.name;
+
+                                        return (
+                                            <button
+                                                key={s.name}
+                                                onClick={() => {
+                                                    onSel(sl ? null : s.name);
+                                                    sH(null);
+                                                }}
+                                                style={{
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: "0.5rem",
+                                                    padding: "0.45rem 0.55rem",
+                                                    borderRadius: "7px",
+                                                    border: "none",
+                                                    cursor: "pointer",
+                                                    backgroundColor: sl
+                                                        ? th.activeBg
+                                                        : "transparent",
+                                                    fontFamily: "'Poppins',sans-serif",
+                                                    fontSize: "0.8rem",
+                                                    fontWeight: sl ? "600" : "450",
+                                                    color: sl ? th.text : th.textSecondary,
+                                                    transition: "0.1s",
+                                                    textAlign: "left",
+                                                    width: "100%",
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    if (!sl) {
+                                                        e.currentTarget.style.backgroundColor =
+                                                            th.hoverBg;
+                                                        e.currentTarget.style.color = th.text;
+                                                    }
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    if (!sl) {
+                                                        e.currentTarget.style.backgroundColor =
+                                                            "transparent";
+                                                        e.currentTarget.style.color =
+                                                            th.textSecondary;
+                                                    }
+                                                }}
+                                            >
+                                                <I size={16} strokeWidth={1.5}/>
+                                                <span>{s.name}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+
+                {/* AI Button */}
+                <div
+                    style={{
+                        marginLeft: "0.2rem",
+                        borderLeft: `1px solid ${th.categoryBorder}`,
+                        paddingLeft: "0.5rem",
+                    }}
+                >
+                    <button
+                        onClick={onAISearch}
                         style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "0.5rem",
-                          padding: "0.45rem 0.55rem",
-                          borderRadius: "7px",
-                          border: "none",
-                          cursor: "pointer",
-                          backgroundColor: sl
-                            ? th.activeBg
-                            : "transparent",
-                          fontFamily: "'Poppins',sans-serif",
-                          fontSize: "0.8rem",
-                          fontWeight: sl ? "600" : "450",
-                          color: sl ? th.text : th.textSecondary,
-                          transition: "0.1s",
-                          textAlign: "left",
-                          width: "100%",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.4rem",
+                            padding: "0.5rem 0.9rem",
+                            fontSize: "0.8rem",
+                            fontWeight: "600",
+                            color: "#fff",
+                            background:
+                                "linear-gradient(135deg, #8b5cf6, #6366f1)",
+                            border: "none",
+                            borderRadius: "8px",
+                            cursor: "pointer",
+                            fontFamily: "'Poppins',sans-serif",
+                            whiteSpace: "nowrap",
+                            boxShadow:
+                                "0 2px 8px rgba(99,102,241,0.3)",
+                            transition: "all 0.2s ease",
                         }}
                         onMouseEnter={(e) => {
-                          if (!sl) {
-                            e.currentTarget.style.backgroundColor =
-                              th.hoverBg;
-                            e.currentTarget.style.color = th.text;
-                          }
+                            e.currentTarget.style.boxShadow =
+                                "0 4px 16px rgba(99,102,241,0.5)";
+                            e.currentTarget.style.transform =
+                                "translateY(-1px)";
                         }}
                         onMouseLeave={(e) => {
-                          if (!sl) {
-                            e.currentTarget.style.backgroundColor =
-                              "transparent";
-                            e.currentTarget.style.color =
-                              th.textSecondary;
-                          }
+                            e.currentTarget.style.boxShadow =
+                                "0 2px 8px rgba(99,102,241,0.3)";
+                            e.currentTarget.style.transform = "none";
                         }}
-                      >
-                        <I size={16} strokeWidth={1.5} />
-                        <span>{s.name}</span>
-                      </button>
-                    );
-                  })}
+                    >
+                        <Sparkles size={14}/>
+                        AI Search
+                    </button>
                 </div>
-              )}
             </div>
-          );
-        })}
-
-        {/* AI Button */}
-        <div
-          style={{
-            marginLeft: "0.2rem",
-            borderLeft: `1px solid ${th.categoryBorder}`,
-            paddingLeft: "0.5rem",
-          }}
-        >
-          <button
-            onClick={onAISearch}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.4rem",
-              padding: "0.5rem 0.9rem",
-              fontSize: "0.8rem",
-              fontWeight: "600",
-              color: "#fff",
-              background:
-                "linear-gradient(135deg, #8b5cf6, #6366f1)",
-              border: "none",
-              borderRadius: "8px",
-              cursor: "pointer",
-              fontFamily: "'Poppins',sans-serif",
-              whiteSpace: "nowrap",
-              boxShadow:
-                "0 2px 8px rgba(99,102,241,0.3)",
-              transition: "all 0.2s ease",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow =
-                "0 4px 16px rgba(99,102,241,0.5)";
-              e.currentTarget.style.transform =
-                "translateY(-1px)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow =
-                "0 2px 8px rgba(99,102,241,0.3)";
-              e.currentTarget.style.transform = "none";
-            }}
-          >
-            <Sparkles size={14} />
-            AI Search
-          </button>
         </div>
-      </div>
-    </div>
-  );
+    );
 };
 
 /* ─── Autocomplete ─────────────────────────────────────────── */
@@ -449,10 +449,11 @@ const AutoDrop = ({th, items, onPick, type}) => (<div style={{
 
 /* ─── Business Card ────────────────────────────────────────── */
 const FALLBACK_IMG = 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=480&h=320&fit=crop';
-const BizCard = ({biz, th, hov, onHov, onFav, isFav}) => {
+const BizCard = ({biz, th, hov, onHov, onFav, isFav, onNavigate}) => {
     const [imgSrc, setImgSrc] = useState(biz.image);
     return (
-        <div onMouseEnter={() => onHov(biz.id)} onMouseLeave={() => onHov(null)} style={{
+        <div onMouseEnter={() => onHov(biz.id)} onMouseLeave={() => onHov(null)}
+             onClick={() => onNavigate && onNavigate(biz.name)} style={{
             display: 'flex',
             gap: '0.85rem',
             padding: '0.85rem',
@@ -1251,7 +1252,9 @@ const DiscoverContent = ({th, favs, toggleFav}) => {
                     <div style={{flex: 1, overflowY: 'auto'}}>{biz.map(b => <BizCard key={b.id} biz={b} th={th}
                                                                                      hov={hovBiz === b.id}
                                                                                      onHov={setHovBiz} onFav={toggleFav}
-                                                                                     isFav={favs.has(b.id)}/>)}
+                                                                                     isFav={favs.has(b.id)}
+                                                                                     onNavigate={(name) => window.location.href = `/business/${encodeURIComponent(name)}`}
+                    />)}
                         {biz.length === 0 && <div style={{textAlign: 'center', padding: '3rem 1.5rem'}}><p
                             style={{color: th.textMuted, fontSize: '0.88rem'}}>No businesses
                             found{sq ? ` for "${sq}"` : ''}</p><p

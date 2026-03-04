@@ -7,6 +7,7 @@ import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react';
 import HomePage from './styles/pages/HomePage';
 import DashboardPage from './styles/pages/DashboardPage';
 import ExplorePage from './styles/pages/ExplorePage';
+import BusinessPage from './styles/pages/BusinessPage';
 
 function App() {
     return (
@@ -36,6 +37,21 @@ function App() {
                         <>
                             <SignedIn>
                                 <ExplorePage />
+                            </SignedIn>
+                            <SignedOut>
+                                <RedirectToSignIn />
+                            </SignedOut>
+                        </>
+                    }
+                />
+
+                {/* Business Detail Page — uses Google Place ID or name as param */}
+                <Route
+                    path="/business/:id"
+                    element={
+                        <>
+                            <SignedIn>
+                                <BusinessPage />
                             </SignedIn>
                             <SignedOut>
                                 <RedirectToSignIn />
