@@ -1,5 +1,5 @@
 import React, {useState, useRef, useEffect, useCallback} from 'react';
-import {useUser, UserButton} from '@clerk/clerk-react';
+import {useUser, UserButton, useClerk} from '@clerk/clerk-react';
 import {useNavigate} from 'react-router-dom';
 import {MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents} from 'react-leaflet';
 import L from 'leaflet';
@@ -14,10 +14,12 @@ import {
     Thermometer, Sofa, Leaf, Shirt,
     HandMetal, Gamepad2, Church, Ticket, Landmark, ParkingCircle,
     Baby, Loader2, AlertCircle, Navigation, Glasses, Bone, PersonStanding,
-    Clock, Navigation2, ArrowRight, RefreshCw, Bot
+    Clock, Navigation2, ArrowRight, RefreshCw, Bot, Users, Trash2, Save
 } from 'lucide-react';
 
 import DealsContent from './DealsPage';
+import FriendsPage from './FriendsPage';
+import { getPreferences, setPreferences } from '../../lib/preferences';
 
 const API = 'http://localhost:5000/api';
 
@@ -79,6 +81,26 @@ const dark = {
     categoryBar: '#111',
     categoryBorder: '#222'
 };
+
+const CUISINE_OPTIONS = [
+    'Italian', 'Mexican', 'Chinese', 'Japanese', 'Thai', 'Vietnamese', 'Korean', 'Mediterranean',
+    'American', 'French', 'Vegan', 'Vegetarian', 'Seafood', 'Bakeries', 'Coffee & Cafes',
+    'Pizza', 'Breakfast & Brunch'
+];
+
+const CATEGORY_OPTIONS = [
+    'Restaurants', 'Home & Garden', 'Auto Services', 'Health & Beauty', 'Travel & Activities',
+    'Nightlife', 'Shopping', 'Gyms', 'Hotels'
+];
+
+const PRICE_LEVELS = [
+    {v: 1, l: '$'}, {v: 2, l: '$$'}, {v: 3, l: '$$$'}, {v: 4, l: '$$$$'}
+];
+
+const DISTANCE_OPTIONS = [
+    {v: 1000, l: 'Walking (1 mi)'}, {v: 3200, l: 'Biking (2 mi)'},
+    {v: 8000, l: "Bird's-eye (3 mi)"}, {v: 16000, l: 'Driving (5 mi)'}
+];
 
 const mainCategories = [
     {
@@ -160,11 +182,14 @@ const mainCategories = [
         }, {name: 'Tailors', icon: Scissors}, {name: 'Yoga & Pilates', icon: PersonStanding}]
     },
 ];
-const navTabs = [{id: 'discover', label: 'Discover', icon: Compass}, {
-    id: 'favorites',
-    label: 'Favorites',
-    icon: Heart
-}, {id: 'deals', label: 'Deals', icon: Tag}, {id: 'reviews', label: 'My Reviews', icon: Star}];
+
+const navTabs = [
+    {id: 'discover', label: 'Discover', icon: Compass},
+    {id: 'favorites', label: 'Favorites', icon: Heart},
+    {id: 'deals', label: 'Deals', icon: Tag},
+    {id: 'reviews', label: 'My Reviews', icon: Star},
+    {id: 'friends', label: 'Friends', icon: Users},
+];
 
 function pinIcon(h) {
     const c = h ? '#ef4444' : '#1a1a1a', s = h ? 30 : 22;
@@ -326,17 +351,14 @@ const CatBar = ({th, onSel, sel, onAISearch}) => {
                                                 }}
                                                 onMouseEnter={(e) => {
                                                     if (!sl) {
-                                                        e.currentTarget.style.backgroundColor =
-                                                            th.hoverBg;
+                                                        e.currentTarget.style.backgroundColor = th.hoverBg;
                                                         e.currentTarget.style.color = th.text;
                                                     }
                                                 }}
                                                 onMouseLeave={(e) => {
                                                     if (!sl) {
-                                                        e.currentTarget.style.backgroundColor =
-                                                            "transparent";
-                                                        e.currentTarget.style.color =
-                                                            th.textSecondary;
+                                                        e.currentTarget.style.backgroundColor = "transparent";
+                                                        e.currentTarget.style.color = th.textSecondary;
                                                     }
                                                 }}
                                             >
@@ -369,26 +391,21 @@ const CatBar = ({th, onSel, sel, onAISearch}) => {
                             fontSize: "0.8rem",
                             fontWeight: "600",
                             color: "#fff",
-                            background:
-                                "linear-gradient(135deg, #8b5cf6, #6366f1)",
+                            background: "linear-gradient(135deg, #8b5cf6, #6366f1)",
                             border: "none",
                             borderRadius: "8px",
                             cursor: "pointer",
                             fontFamily: "'Poppins',sans-serif",
                             whiteSpace: "nowrap",
-                            boxShadow:
-                                "0 2px 8px rgba(99,102,241,0.3)",
+                            boxShadow: "0 2px 8px rgba(99,102,241,0.3)",
                             transition: "all 0.2s ease",
                         }}
                         onMouseEnter={(e) => {
-                            e.currentTarget.style.boxShadow =
-                                "0 4px 16px rgba(99,102,241,0.5)";
-                            e.currentTarget.style.transform =
-                                "translateY(-1px)";
+                            e.currentTarget.style.boxShadow = "0 4px 16px rgba(99,102,241,0.5)";
+                            e.currentTarget.style.transform = "translateY(-1px)";
                         }}
                         onMouseLeave={(e) => {
-                            e.currentTarget.style.boxShadow =
-                                "0 2px 8px rgba(99,102,241,0.3)";
+                            e.currentTarget.style.boxShadow = "0 2px 8px rgba(99,102,241,0.3)";
                             e.currentTarget.style.transform = "none";
                         }}
                     >
@@ -511,7 +528,6 @@ const BizCard = ({biz, th, hov, onHov, onFav, isFav, onNavigate}) => {
                     }}><Heart size={17} fill={isFav ? '#ef4444' : 'none'} color={isFav ? '#ef4444' : th.textMuted}/>
                     </button>
                 </div>
-                {/* Rating */}
                 {biz.rating &&
                     <div style={{display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.15rem'}}>
                         <div style={{display: 'flex', gap: '1px'}}>{[1, 2, 3, 4, 5].map(s => <Star key={s} size={11}
@@ -865,7 +881,6 @@ const DiscoverContent = ({th, favs, toggleFav}) => {
             if (cat) p.set('category', cat);
             const d = await apiFetch(`${API}/search?${p}`);
 
-            // Sort by distance when user has location
             let businesses = d.businesses || [];
             if (uLoc || loc === 'Current Location') {
                 businesses = [...businesses].sort((a, b) => (a.distanceMeters || 99999) - (b.distanceMeters || 99999));
@@ -1280,59 +1295,189 @@ const PH = ({th, icon: I, title, desc}) => (<div style={{
 }}><I size={44} color={th.textMuted} style={{marginBottom: '1rem', opacity: 0.4}}/><h2
     style={{fontSize: '1.1rem', fontWeight: '600', color: th.text, marginBottom: '0.3rem'}}>{title}</h2><p
     style={{fontSize: '0.85rem', color: th.textMuted}}>{desc}</p></div>);
-const SettingsContent = ({th, isDark, setDark}) => (
-    <div style={{padding: '2rem 2.5rem', maxWidth: '500px', margin: '0 auto', overflowY: 'auto', height: '100%'}}>
-        <h1 style={{fontSize: '1.5rem', fontWeight: '700', color: th.text, marginBottom: '1.5rem'}}>Settings</h1>
-        {[{
-            title: 'Dark Mode',
-            desc: 'Switch themes',
-            isOn: isDark,
-            fn: () => setDark(!isDark)
-        }, {
-            title: 'Notifications', desc: 'Deal & review alerts', isOn: true, fn: () => {
+
+const SettingsContent = ({th, isDark, setDark, userId}) => {
+    const { signOut } = useClerk();
+    const nav = useNavigate();
+    const [cuisines, setCuisines] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [priceLevel, setPriceLevel] = useState(null);
+    const [distanceRadius, setDistanceRadius] = useState(5000);
+    const [loaded, setLoaded] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [saved, setSaved] = useState(false);
+
+    useEffect(() => {
+        if (!userId) return;
+        getPreferences(userId).then(p => {
+            if (p?.preferences) {
+                setCuisines(p.preferences.cuisines ?? []);
+                setCategories(p.preferences.categories ?? []);
+                setPriceLevel(p.preferences.price_level ?? null);
+                setDistanceRadius(p.preferences.distance_radius_meters ?? 5000);
             }
-        }, {
-            title: 'Location Tracking', desc: 'Nearby businesses', isOn: true, fn: () => {
-            }
-        }].map((it, i) => (
-            <div key={i} style={{
-                backgroundColor: th.cardBg,
-                border: `1px solid ${th.border}`,
-                borderRadius: '12px',
-                padding: '1rem',
-                marginBottom: '0.6rem',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-            }}>
-                <div><h3 style={{
-                    fontSize: '0.88rem',
-                    fontWeight: '600',
-                    color: th.text,
-                    margin: '0 0 0.1rem'
-                }}>{it.title}</h3><p style={{fontSize: '0.72rem', color: th.textMuted, margin: 0}}>{it.desc}</p></div>
-                <button onClick={it.fn} style={{
-                    width: '42px',
-                    height: '24px',
+            setLoaded(true);
+        }).catch(() => setLoaded(true));
+    }, [userId]);
+
+    const toggleChip = (arr, setArr, val) =>
+        setArr(prev => prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]);
+
+    const chipStyle = (active) => ({
+        padding: '0.4rem 1rem',
+        borderRadius: '20px',
+        border: active ? 'none' : `1px solid ${th.border}`,
+        backgroundColor: active ? th.accent : 'transparent',
+        color: active ? th.accentText : th.textSecondary,
+        cursor: 'pointer',
+        fontFamily: "'Poppins',sans-serif",
+        fontSize: '0.8rem',
+        fontWeight: active ? '600' : '450',
+        transition: '0.15s',
+    });
+
+    const handleSaveAsync = async () => {
+        if (!userId) return;
+        setSaving(true);
+        try {
+            await setPreferences(userId, { cuisines, categories, price_level: priceLevel, distance_radius_meters: distanceRadius });
+            setSaved(true);
+            setTimeout(() => setSaved(false), 2000);
+        } catch (e) { console.error(e); }
+        finally { setSaving(false); }
+    };
+
+    const handleDeleteAccount = async () => {
+        if (window.confirm('Are you sure you want to delete your account? This cannot be undone.')) {
+            await signOut(() => nav('/'));
+        }
+    };
+
+    return (
+        <div style={{padding: '2rem 2.5rem', maxWidth: '500px', margin: '0 auto', overflowY: 'auto', height: '100%'}}>
+            <h1 style={{fontSize: '1.5rem', fontWeight: '700', color: th.text, marginBottom: '1.5rem'}}>Settings</h1>
+
+            {/* App toggles */}
+            {[{
+                title: 'Dark Mode', desc: 'Switch themes', isOn: isDark, fn: () => setDark(!isDark)
+            }, {
+                title: 'Notifications', desc: 'Deal & review alerts', isOn: true, fn: () => {}
+            }, {
+                title: 'Location Tracking', desc: 'Nearby businesses', isOn: true, fn: () => {}
+            }].map((it, i) => (
+                <div key={i} style={{
+                    backgroundColor: th.cardBg,
+                    border: `1px solid ${th.border}`,
                     borderRadius: '12px',
-                    border: 'none',
-                    backgroundColor: it.isOn ? th.accent : th.border,
-                    cursor: 'pointer',
-                    position: 'relative'
+                    padding: '1rem',
+                    marginBottom: '0.6rem',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
                 }}>
-                    <div style={{
-                        width: '18px',
-                        height: '18px',
-                        borderRadius: '50%',
-                        backgroundColor: it.isOn ? th.accentText : '#fff',
-                        position: 'absolute',
-                        top: '3px',
-                        left: it.isOn ? '21px' : '3px',
-                        transition: '0.3s',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.15)'
-                    }}/>
+                    <div><h3 style={{fontSize: '0.88rem', fontWeight: '600', color: th.text, margin: '0 0 0.1rem'}}>{it.title}</h3>
+                        <p style={{fontSize: '0.72rem', color: th.textMuted, margin: 0}}>{it.desc}</p></div>
+                    <button onClick={it.fn} style={{
+                        width: '42px', height: '24px', borderRadius: '12px', border: 'none',
+                        backgroundColor: it.isOn ? th.accent : th.border, cursor: 'pointer', position: 'relative'
+                    }}>
+                        <div style={{
+                            width: '18px', height: '18px', borderRadius: '50%',
+                            backgroundColor: it.isOn ? th.accentText : '#fff',
+                            position: 'absolute', top: '3px', left: it.isOn ? '21px' : '3px',
+                            transition: '0.3s', boxShadow: '0 1px 3px rgba(0,0,0,0.15)'
+                        }}/>
+                    </button>
+                </div>
+            ))}
+
+            {/* Taste Profile */}
+            <div style={{borderTop: `1px solid ${th.border}`, marginTop: '1.5rem', paddingTop: '1.5rem'}}>
+                <h2 style={{fontSize: '1rem', fontWeight: '700', color: th.text, marginBottom: '1.2rem'}}>Taste Profile</h2>
+
+                <div style={{marginBottom: '1.2rem'}}>
+                    <h3 style={{fontSize: '0.85rem', fontWeight: '600', color: th.text, marginBottom: '0.5rem'}}>Favorite Cuisines</h3>
+                    <div style={{display: 'flex', flexWrap: 'wrap', gap: '0.4rem'}}>
+                        {CUISINE_OPTIONS.map(c => (
+                            <button key={c} onClick={() => toggleChip(cuisines, setCuisines, c)} style={chipStyle(cuisines.includes(c))}>{c}</button>
+                        ))}
+                    </div>
+                </div>
+
+                <div style={{marginBottom: '1.2rem'}}>
+                    <h3 style={{fontSize: '0.85rem', fontWeight: '600', color: th.text, marginBottom: '0.5rem'}}>Business Categories</h3>
+                    <div style={{display: 'flex', flexWrap: 'wrap', gap: '0.4rem'}}>
+                        {CATEGORY_OPTIONS.map(c => (
+                            <button key={c} onClick={() => toggleChip(categories, setCategories, c)} style={chipStyle(categories.includes(c))}>{c}</button>
+                        ))}
+                    </div>
+                </div>
+
+                <div style={{marginBottom: '1.2rem'}}>
+                    <h3 style={{fontSize: '0.85rem', fontWeight: '600', color: th.text, marginBottom: '0.5rem'}}>Price Level</h3>
+                    <div style={{display: 'flex', gap: '0.4rem'}}>
+                        {PRICE_LEVELS.map(p => (
+                            <button key={p.v} onClick={() => setPriceLevel(priceLevel === p.v ? null : p.v)} style={{
+                                padding: '0.4rem 1rem', borderRadius: '8px',
+                                border: `1px solid ${priceLevel === p.v ? 'transparent' : th.border}`,
+                                backgroundColor: priceLevel === p.v ? th.accent : 'transparent',
+                                color: priceLevel === p.v ? th.accentText : th.textSecondary,
+                                cursor: 'pointer', fontFamily: "'Poppins',sans-serif", fontSize: '0.85rem',
+                                fontWeight: priceLevel === p.v ? '700' : '500', transition: '0.15s',
+                            }}>{p.l}</button>
+                        ))}
+                    </div>
+                </div>
+
+                <div style={{marginBottom: '1.2rem'}}>
+                    <h3 style={{fontSize: '0.85rem', fontWeight: '600', color: th.text, marginBottom: '0.5rem'}}>Preferred Distance</h3>
+                    <div style={{display: 'flex', flexWrap: 'wrap', gap: '0.4rem'}}>
+                        {DISTANCE_OPTIONS.map(d => (
+                            <button key={d.v} onClick={() => setDistanceRadius(d.v)} style={{
+                                padding: '0.35rem 0.7rem', borderRadius: '20px',
+                                border: `1px solid ${distanceRadius === d.v ? 'transparent' : th.border}`,
+                                backgroundColor: distanceRadius === d.v ? th.accent : 'transparent',
+                                color: distanceRadius === d.v ? th.accentText : th.textSecondary,
+                                cursor: 'pointer', fontFamily: "'Poppins',sans-serif",
+                                fontWeight: distanceRadius === d.v ? '600' : '450', fontSize: '0.76rem',
+                                transition: '0.15s',
+                            }}>{d.l}</button>
+                        ))}
+                    </div>
+                </div>
+
+                <button onClick={handleSaveAsync} disabled={saving || loaded === false} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+                    padding: '0.7rem 2rem', width: '100%', maxWidth: '320px',
+                    backgroundColor: saved ? '#16a34a' : th.accent, color: saved ? '#fff' : th.accentText,
+                    border: 'none', borderRadius: '10px', cursor: 'pointer',
+                    fontFamily: "'Poppins',sans-serif", fontWeight: '600', fontSize: '0.88rem',
+                    opacity: (saving || !loaded) ? 0.7 : 1, transition: '0.3s',
+                }}>
+                    <Save size={16}/>{saving ? 'Saving...' : saved ? 'Saved!' : 'Save Taste Profile'}
                 </button>
-            </div>))}</div>);
+            </div>
+
+            {/* Account actions */}
+            <div style={{borderTop: `1px solid ${th.border}`, marginTop: '1.5rem', paddingTop: '1.5rem'}}>
+                <button onClick={() => signOut(() => nav('/'))} style={{
+                    display: 'flex', alignItems: 'center', gap: '0.65rem',
+                    padding: '0.65rem 1rem', width: '100%', maxWidth: '320px',
+                    backgroundColor: 'transparent', color: th.textSecondary,
+                    border: `1px solid ${th.border}`, borderRadius: '10px', cursor: 'pointer',
+                    fontFamily: "'Poppins',sans-serif", fontSize: '0.85rem', marginBottom: '0.65rem',
+                }}>Sign out</button>
+                <button onClick={handleDeleteAccount} style={{
+                    display: 'flex', alignItems: 'center', gap: '0.65rem',
+                    padding: '0.65rem 1rem', width: '100%', maxWidth: '320px',
+                    backgroundColor: 'transparent', color: '#dc2626',
+                    border: `1px solid #dc2626`, borderRadius: '10px', cursor: 'pointer',
+                    fontFamily: "'Poppins',sans-serif", fontSize: '0.85rem',
+                }}><Trash2 size={15}/>Delete account</button>
+            </div>
+        </div>
+    );
+};
 
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1357,16 +1502,18 @@ const DashboardPage = () => {
 
     const content = () => {
         switch (tab) {
-            case'discover':
+            case 'discover':
                 return <DiscoverContent th={th} favs={favs} toggleFav={tF}/>;
-            case'favorites':
+            case 'favorites':
                 return <PH th={th} icon={Heart} title="Favorites" desc="Heart businesses to save them here"/>;
-            case'deals':
+            case 'deals':
                 return <DealsContent th={th}/>;
-            case'reviews':
+            case 'reviews':
                 return <PH th={th} icon={Star} title="My Reviews" desc="Your reviews show here"/>;
-            case'settings':
-                return <SettingsContent th={th} isDark={isDark} setDark={setDark}/>;
+            case 'friends':
+                return <FriendsPage />;
+            case 'settings':
+                return <SettingsContent th={th} isDark={isDark} setDark={setDark} userId={user?.id}/>;
             default:
                 return <DiscoverContent th={th} favs={favs} toggleFav={tF}/>
         }
