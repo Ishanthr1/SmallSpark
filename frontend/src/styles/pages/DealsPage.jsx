@@ -1,9 +1,10 @@
 /**
- * DealsPage.jsx — Real curated deals only
- * No fake/randomized API deals — all handpicked Utah businesses
+ * DealsPage.jsx — Real deals from DiscountAPI + fallback curated deals
+ * Fetches from backend /api/deals (proxies DiscountAPI). Uses placeholder deals when API key is not set.
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Heart, Star, MapPin, ChevronLeft, ChevronRight, Tag, Sparkles,
     Clock, Gift, ArrowRight, Loader2, Scissors, Utensils,
@@ -11,7 +12,9 @@ import {
     Search, X, Wrench, Dumbbell, Tent
 } from 'lucide-react';
 
-/* ─── All real Utah deals ──────────────────────────────────── */
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+/* ─── Fallback curated deals (when API key not set or API fails) ─── */
 const CURATED_DEALS = [
     // Health & Beauty
     { id: 'c1', name: 'Spa Holiday', title: '60-Min Couples Massage or Single Massage', location: '4970 South 900 East, Murray', distance: '7.4 mi', rating: 4.7, reviews: 767, originalPrice: 260, salePrice: 189, finalPrice: 151.20, discount: 27, code: 'LOVE', category: 'Health & Beauty', subcategory: 'Spas', image: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=480&h=320&fit=crop', popular: true },
@@ -61,22 +64,35 @@ const CATEGORY_BANNERS = [
     { id: 'b4', title: 'Auto & Home Services', subtitle: 'Keep your car and home in top shape', icon: Wrench, bg: 'https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=600&h=300&fit=crop', filter: 'Auto & Home' },
 ];
 
-/* ─── Star rating ──────────────────────────────────────────── */
-const Stars = ({ rating, count }) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
-        {[1,2,3,4,5].map(i => (
-            <Star key={i} size={12} fill={i <= Math.floor(rating) ? '#f59e0b' : (i - 0.5 <= rating ? '#f59e0b' : 'none')}
-                color="#f59e0b" style={{ opacity: i <= rating ? 1 : 0.3 }} />
-        ))}
-        <span style={{ fontSize: '0.72rem', fontWeight: '600', marginLeft: '0.15rem' }}>{rating}</span>
-        {count != null && <span style={{ fontSize: '0.68rem', color: '#999' }}>({count.toLocaleString()})</span>}
-    </div>
-);
+/* ─── Star rating (optional) ─────────────────────────────────── */
+const Stars = ({ rating, count }) => {
+    if (rating == null && count == null) return null;
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+            {[1,2,3,4,5].map(i => (
+                <Star key={i} size={12} fill={i <= Math.floor(rating || 0) ? '#f59e0b' : (i - 0.5 <= (rating || 0) ? '#f59e0b' : 'none')}
+                    color="#f59e0b" style={{ opacity: i <= (rating || 0) ? 1 : 0.3 }} />
+            ))}
+            <span style={{ fontSize: '0.72rem', fontWeight: '600', marginLeft: '0.15rem' }}>{rating != null ? rating : '—'}</span>
+            {count != null && count > 0 && <span style={{ fontSize: '0.68rem', color: '#999' }}>({count.toLocaleString()})</span>}
+        </div>
+    );
+};
 
 /* ─── Deal Card ────────────────────────────────────────────── */
-const DealCard = ({ deal, th, onFav, isFav, compact }) => {
+const DealCard = ({ deal, th, onFav, isFav, compact, onDealClick }) => {
     const [imgErr, setImgErr] = useState(false);
+    const handleClick = () => {
+        if (onDealClick) onDealClick(deal);
+    };
     return (
+        <div
+            role="button"
+            tabIndex={0}
+            onClick={handleClick}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') handleClick(); }}
+            style={{ textDecoration: 'none', color: 'inherit', cursor: onDealClick ? 'pointer' : 'default' }}
+        >
         <div style={{
             width: compact ? '220px' : '100%', minWidth: compact ? '220px' : 'auto',
             backgroundColor: th.cardBg, borderRadius: '12px', overflow: 'hidden',
@@ -111,6 +127,7 @@ const DealCard = ({ deal, th, onFav, isFav, compact }) => {
                     <span style={{ fontSize: '0.65rem', color: th.textMuted, marginLeft: '0.2rem' }}>with code {deal.code}</span>
                 </div>}
             </div>
+        </div>
         </div>
     );
 };
@@ -154,19 +171,72 @@ const SectionHead = ({ th, icon: Icon, title, subtitle, action }) => (
 /* ═══════════════════════════════════════════════════════════════
    MAIN DEALS CONTENT
    ═══════════════════════════════════════════════════════════════ */
+const DEFAULT_LOCATION = '40.5622,-111.9297'; // South Jordan, UT
+
 const DealsContent = ({ th }) => {
+    const navigate = useNavigate();
     const [favs, setFavs] = useState(new Set());
     const [activeFilter, setActiveFilter] = useState('All');
     const [dealSearch, setDealSearch] = useState('');
+    const [deals, setDeals] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [source, setSource] = useState('fallback');
+
+    useEffect(() => {
+        let cancelled = false;
+        setLoading(true);
+        setError(null);
+        const category = activeFilter === 'All' ? '' : activeFilter;
+        const params = new URLSearchParams({
+            location: DEFAULT_LOCATION,
+            radius: 15,
+            per_page: 20,
+            page: 1,
+        });
+        if (category) params.set('category', category);
+        fetch(`${API}/deals?${params}`)
+            .then(r => r.json())
+            .then(data => {
+                if (cancelled) return;
+                setLoading(false);
+                if (data.error) {
+                    setError(data.error);
+                    setSource(data.source || 'api');
+                    if (data.source === 'placeholder' || data.source === 'api') {
+                        setDeals(CURATED_DEALS);
+                        setSource('fallback');
+                    } else {
+                        setDeals([]);
+                    }
+                } else {
+                    setDeals(data.deals || []);
+                    setSource(data.source || 'api');
+                    setError(null);
+                    if (!(data.deals && data.deals.length)) {
+                        setDeals(CURATED_DEALS);
+                        setSource('fallback');
+                    }
+                }
+            })
+            .catch(e => {
+                if (cancelled) return;
+                setLoading(false);
+                setError(e.message || 'Could not load deals.');
+                setDeals(CURATED_DEALS);
+                setSource('fallback');
+            });
+        return () => { cancelled = true; };
+    }, [activeFilter]);
 
     const toggleFav = useCallback(id => {
         setFavs(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
     }, []);
 
-    const searchFilter = (deals) => {
-        if (!dealSearch.trim()) return deals;
+    const searchFilter = (dealsList) => {
+        if (!dealSearch.trim()) return dealsList;
         const q = dealSearch.toLowerCase();
-        return deals.filter(d =>
+        return dealsList.filter(d =>
             d.name.toLowerCase().includes(q) ||
             d.title.toLowerCase().includes(q) ||
             (d.location && d.location.toLowerCase().includes(q)) ||
@@ -174,12 +244,17 @@ const DealsContent = ({ th }) => {
         );
     };
 
-    const trendingDeals = searchFilter(CURATED_DEALS.filter(d => d.popular)).slice(0, 12);
-    const filteredDeals = searchFilter(activeFilter === 'All' ? CURATED_DEALS : CURATED_DEALS.filter(d => d.category === activeFilter));
-    const healthDeals = searchFilter(CURATED_DEALS.filter(d => d.category === 'Health & Beauty'));
-    const foodDeals = searchFilter(CURATED_DEALS.filter(d => d.category === 'Food & Drink'));
-    const activityDeals = searchFilter(CURATED_DEALS.filter(d => d.category === 'Activities'));
+    const trendingDeals = searchFilter(deals.filter(d => d.popular)).slice(0, 12);
+    const filteredDeals = searchFilter(activeFilter === 'All' ? deals : deals.filter(d => d.category === activeFilter));
+    const healthDeals = searchFilter(deals.filter(d => d.category === 'Health & Beauty'));
+    const foodDeals = searchFilter(deals.filter(d => d.category === 'Food & Drink'));
+    const activityDeals = searchFilter(deals.filter(d => d.category === 'Activities'));
+    const autoDeals = searchFilter(deals.filter(d => d.category === 'Auto & Home'));
     const filters = ['All', 'Health & Beauty', 'Food & Drink', 'Activities', 'Auto & Home'];
+
+    const handleDealClick = useCallback((deal) => {
+        navigate(`/business/${encodeURIComponent(deal.name)}`, { state: { fromDeal: deal } });
+    }, [navigate]);
 
     return (
         <div style={{ height: '100%', overflowY: 'auto', backgroundColor: th.bgAlt }}>
@@ -194,6 +269,26 @@ const DealsContent = ({ th }) => {
                 </div>
             </div>
 
+            {loading && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem', gap: '0.5rem', color: th.textMuted }}>
+                    <Loader2 size={22} style={{ animation: 'spin 0.8s linear infinite' }} />
+                    <span style={{ fontSize: '0.9rem', fontWeight: '500' }}>Loading deals...</span>
+                </div>
+            )}
+
+            {source === 'fallback' && !loading && (
+                <div style={{ padding: '0.6rem 2rem', backgroundColor: th.cardBg, borderBottom: `1px solid ${th.border}`, fontSize: '0.8rem', color: th.textSecondary, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Tag size={16} color={th.textMuted} />
+                    <span>Showing sample deals. Add <code style={{ background: th.badgeBg, padding: '0.1rem 0.35rem', borderRadius: '4px' }}>DISCOUNT_API_KEY</code> to <code style={{ background: th.badgeBg, padding: '0.1rem 0.35rem', borderRadius: '4px' }}>backend/.env</code> to see real local deals.</span>
+                </div>
+            )}
+
+            {error && source !== 'fallback' && !loading && (
+                <div style={{ padding: '0.8rem 2rem', backgroundColor: '#fef2f2', borderBottom: '1px solid #fecaca', fontSize: '0.85rem', color: '#b91c1c' }}>{error}</div>
+            )}
+
+            {!loading && (
+            <>
             <div style={{ background: 'linear-gradient(90deg, #c2410c, #ea580c)', padding: '0.7rem 2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', cursor: 'pointer' }}>
                 <span style={{ color: '#fff', fontSize: '0.82rem', fontWeight: '600' }}>🍕 Foodie Favorites Week — Save up to 40% at the best local restaurants and cafes!</span>
                 <ChevronRight size={16} color="#fff" />
@@ -212,7 +307,7 @@ const DealsContent = ({ th }) => {
                 {/* Trending */}
                 {trendingDeals.length > 0 && <div style={{ marginBottom: '2rem' }}>
                     <SectionHead th={th} icon={Flame} title="Trending Near You" subtitle="South Jordan & surrounding areas" action />
-                    <Carousel th={th}>{trendingDeals.map(deal => <DealCard key={deal.id} deal={deal} th={th} onFav={toggleFav} isFav={favs.has(deal.id)} compact />)}</Carousel>
+                    <Carousel th={th}>{trendingDeals.map(deal => <DealCard key={deal.id} deal={deal} th={th} onFav={toggleFav} isFav={favs.has(deal.id)} compact onDealClick={handleDealClick} />)}</Carousel>
                 </div>}
 
                 {/* Category banners */}
@@ -240,24 +335,29 @@ const DealsContent = ({ th }) => {
                 {/* Category sections */}
                 {(activeFilter === 'All' || activeFilter === 'Health & Beauty') && healthDeals.length > 0 && <div style={{ marginBottom: '2rem' }}>
                     <SectionHead th={th} icon={Scissors} title="Health & Beauty Deals" subtitle="Salons, spas, and wellness" action />
-                    <Carousel th={th}>{healthDeals.map(d => <DealCard key={d.id} deal={d} th={th} onFav={toggleFav} isFav={favs.has(d.id)} compact />)}</Carousel>
+                    <Carousel th={th}>{healthDeals.map(d => <DealCard key={d.id} deal={d} th={th} onFav={toggleFav} isFav={favs.has(d.id)} compact onDealClick={handleDealClick} />)}</Carousel>
                 </div>}
 
                 {(activeFilter === 'All' || activeFilter === 'Food & Drink') && foodDeals.length > 0 && <div style={{ marginBottom: '2rem' }}>
                     <SectionHead th={th} icon={Utensils} title="Food & Drink Deals" subtitle="Restaurants, cafes, and treats" action />
-                    <Carousel th={th}>{foodDeals.map(d => <DealCard key={d.id} deal={d} th={th} onFav={toggleFav} isFav={favs.has(d.id)} compact />)}</Carousel>
+                    <Carousel th={th}>{foodDeals.map(d => <DealCard key={d.id} deal={d} th={th} onFav={toggleFav} isFav={favs.has(d.id)} compact onDealClick={handleDealClick} />)}</Carousel>
                 </div>}
 
                 {(activeFilter === 'All' || activeFilter === 'Activities') && activityDeals.length > 0 && <div style={{ marginBottom: '2rem' }}>
                     <SectionHead th={th} icon={Ticket} title="Activities & Fun" subtitle="Experiences and entertainment" action />
-                    <Carousel th={th}>{activityDeals.map(d => <DealCard key={d.id} deal={d} th={th} onFav={toggleFav} isFav={favs.has(d.id)} compact />)}</Carousel>
+                    <Carousel th={th}>{activityDeals.map(d => <DealCard key={d.id} deal={d} th={th} onFav={toggleFav} isFav={favs.has(d.id)} compact onDealClick={handleDealClick} />)}</Carousel>
+                </div>}
+
+                {(activeFilter === 'All' || activeFilter === 'Auto & Home') && autoDeals.length > 0 && <div style={{ marginBottom: '2rem' }}>
+                    <SectionHead th={th} icon={Wrench} title="Auto & Home Deals" subtitle="Services and repairs" action />
+                    <Carousel th={th}>{autoDeals.map(d => <DealCard key={d.id} deal={d} th={th} onFav={toggleFav} isFav={favs.has(d.id)} compact onDealClick={handleDealClick} />)}</Carousel>
                 </div>}
 
                 {/* All deals grid */}
                 <div style={{ marginBottom: '2rem' }}>
                     <SectionHead th={th} icon={Tag} title={activeFilter === 'All' ? 'All Deals' : `${activeFilter} Deals`} subtitle={`${filteredDeals.length} deals available`} />
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1rem' }}>
-                        {filteredDeals.map(d => <DealCard key={d.id} deal={d} th={th} onFav={toggleFav} isFav={favs.has(d.id)} />)}
+                        {filteredDeals.map(d => <DealCard key={d.id} deal={d} th={th} onFav={toggleFav} isFav={favs.has(d.id)} onDealClick={handleDealClick} />)}
                     </div>
                     {filteredDeals.length === 0 && <div style={{ textAlign: 'center', padding: '3rem', color: th.textMuted }}>
                         <Tag size={40} style={{ opacity: 0.3, marginBottom: '0.8rem' }} />
@@ -275,6 +375,8 @@ const DealsContent = ({ th }) => {
                     </div>
                 </div>
             </div>
+            </>
+            )}
         </div>
     );
 };

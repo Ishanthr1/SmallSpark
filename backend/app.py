@@ -18,10 +18,15 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('spark')
 
 app = Flask(__name__)
+from digital_routes import digital_bp
+app.register_blueprint(digital_bp)
 CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET","POST","OPTIONS"],
      "allow_headers": ["Content-Type","Authorization"]}})
 
 GOOGLE_API_KEY = os.environ.get('GOOGLE_PLACES_API_KEY', '')
+
+# DiscountAPI — free tier for local deals (https://discountapi.com)
+DISCOUNT_API_KEY = os.environ.get('DISCOUNT_API_KEY', '')
 
 if not GOOGLE_API_KEY:
     log.warning("⚠️  GOOGLE_PLACES_API_KEY not set! Add it to backend/.env")
@@ -83,7 +88,7 @@ def google_nearby_search(lat, lng, radius, included_types=None):
                 "radius": min(radius, 50000.0)
             }
         },
-        "maxResultCount": 20,
+        "maxResultCount": 20,  # Google's max per request
         "languageCode": "en",
     }
     if included_types:
@@ -92,7 +97,27 @@ def google_nearby_search(lat, lng, radius, included_types=None):
     try:
         resp = req.post(url, json=body, headers=headers, timeout=12)
         resp.raise_for_status()
-        return resp.json().get("places", [])
+        data = resp.json()
+        places = data.get("places", [])
+
+        # Try to get more results with pagination if available
+        next_token = data.get("nextPageToken")
+        attempt = 0
+        while next_token and attempt < 4:  # Get up to 100 total (5 pages × 20)
+            attempt += 1
+            import time
+            time.sleep(0.5)  # Brief delay for pagination
+            body["pageToken"] = next_token
+            try:
+                resp = req.post(url, json=body, headers=headers, timeout=12)
+                resp.raise_for_status()
+                data = resp.json()
+                places.extend(data.get("places", []))
+                next_token = data.get("nextPageToken")
+            except:
+                break
+
+        return places
     except Exception as e:
         log.error(f"Nearby search error: {e}")
         return []
@@ -114,17 +139,61 @@ def google_text_search(query, lat, lng, radius):
                 "radius": min(radius, 50000.0)
             }
         },
-        "maxResultCount": 20,
+        "maxResultCount": 20,  # Google's max per request
         "languageCode": "en",
     }
 
     try:
         resp = req.post(url, json=body, headers=headers, timeout=12)
         resp.raise_for_status()
-        return resp.json().get("places", [])
+        data = resp.json()
+        places = data.get("places", [])
+
+        # Try to get more results with pagination if available
+        next_token = data.get("nextPageToken")
+        attempt = 0
+        while next_token and attempt < 4:  # Get up to 100 total (5 pages × 20)
+            attempt += 1
+            import time
+            time.sleep(0.5)  # Brief delay for pagination
+            body["pageToken"] = next_token
+            try:
+                resp = req.post(url, json=body, headers=headers, timeout=12)
+                resp.raise_for_status()
+                data = resp.json()
+                places.extend(data.get("places", []))
+                next_token = data.get("nextPageToken")
+            except:
+                break
+
+        return places
     except Exception as e:
         log.error(f"Text search error: {e}")
         return []
+
+
+# ─── Google Places: Get single place by ID ─────────────────────
+FIELD_MASK_GET = "id,displayName,formattedAddress,shortFormattedAddress,location,rating,userRatingCount,types,nationalPhoneNumber,websiteUri,currentOpeningHours,regularOpeningHours,photos,primaryType,primaryTypeDisplayName,editorialSummary,priceLevel,businessStatus"
+
+def _looks_like_place_id(q):
+    if not q or len(q) < 20:
+        return False
+    q = q.strip()
+    return q.startswith("ChIJ") or q.startswith("places/")
+
+def google_get_place(place_id):
+    raw = place_id.strip()
+    if raw.startswith("places/"):
+        raw = raw.replace("places/", "", 1)
+    url = f"https://places.googleapis.com/v1/places/{raw}"
+    headers = {"X-Goog-Api-Key": GOOGLE_API_KEY, "X-Goog-FieldMask": FIELD_MASK_GET}
+    try:
+        resp = req.get(url, headers=headers, timeout=10)
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:
+        log.error(f"Get place error: {e}")
+        return None
 
 
 # ─── Photo URL builder ─────────────────────────────────────────
@@ -281,6 +350,118 @@ SUBCAT_TO_GTYPE = {
     "Tailors": ["tailor"],
 }
 
+# Categories where big chains dominate — pull extra results via "local" / "independent" queries.
+CHAIN_HEAVY_CATEGORIES = frozenset([
+    "Banks", "Gyms", "Coffee & Cafes", "Takeout", "Hair Salons", "Auto Repair",
+    "Hotels", "Spas", "Nail Salons", "Barbers", "Dentists", "Doctors",
+    "Optometrists", "Dry Cleaning", "Laundromats", "Pet Groomers",
+    "Contractors", "Car Wash", "Breakfast & Brunch", "Pizza", "Mexican",
+])
+EXTRA_QUERIES_BY_CATEGORY = {
+    "Banks": ["local bank", "community bank", "credit union", "local credit union"],
+    "Gyms": ["local gym", "independent gym", "fitness studio"],
+    "Coffee & Cafes": ["local coffee shop", "independent cafe", "neighborhood coffee"],
+    "Takeout": ["local restaurant", "family restaurant", "neighborhood restaurant"],
+    "Hair Salons": ["local hair salon", "independent salon", "neighborhood salon"],
+    "Auto Repair": ["local auto repair", "independent mechanic", "family auto"],
+    "Hotels": ["bed and breakfast", "boutique hotel", "local inn"],
+    "Spas": ["local spa", "day spa", "independent spa"],
+    "Nail Salons": ["local nail salon", "independent nail salon"],
+    "Barbers": ["local barber", "barber shop", "neighborhood barber"],
+    "Dentists": ["family dentist", "local dentist", "independent dental"],
+    "Doctors": ["family doctor", "local clinic", "independent practice"],
+    "Optometrists": ["local optometrist", "independent eye doctor"],
+    "Dry Cleaning": ["local dry cleaner", "neighborhood dry cleaner"],
+    "Laundromats": ["laundromat", "laundry"],
+    "Pet Groomers": ["local pet groomer", "pet grooming", "independent groomer"],
+    "Contractors": ["local contractor", "general contractor", "local handyman"],
+    "Car Wash": ["local car wash", "car wash"],
+    "Breakfast & Brunch": ["breakfast restaurant", "brunch", "local breakfast"],
+    "Pizza": ["local pizza", "pizza restaurant", "neighborhood pizza"],
+    "Mexican": ["local mexican restaurant", "mexican food", "taqueria"],
+}
+
+# ─── Exclude large chains / big box — show only small businesses ─
+LARGE_CHAIN_NAMES = frozenset([
+    "costco", "costco wholesale", "sam's club", "sams club", "bj's", "bjs wholesale",
+    "walmart", "wal-mart", "target", "kmart", "meijer", "fred meyer",
+    "mcdonald's", "mcdonalds", "burger king", "wendy's", "wendys", "sonic",
+    "taco bell", "chipotle", "qdoba", "del taco", "moe's southwest grill",
+    "kfc", "kentucky fried chicken", "popeyes", "chick-fil-a", "chick fil a",
+    "panda express", "panda inn", "five guys", "in-n-out", "in n out",
+    "whataburger", "jack in the box", "carl's jr", "carls jr", "hardee's", "hardees",
+    "arbys", "arby's", "subway", "jimmy john's", "jimmy johns", "firehouse subs",
+    "pizza hut", "domino's", "dominos", "papa john's", "papa johns", "little caesars",
+    "wingstop", "buffalo wild wings", "bdubs", "applebees", "applebee's",
+    "olive garden", "red lobster", "outback", "outback steakhouse",
+    "texas roadhouse", "chili's", "chilis", "longhorn steakhouse",
+    "ihop", "i hop", "denny's", "dennys", "cracker barrel", "waffle house",
+    "starbucks", "dunkin'", "dunkin", "dunkin donuts", "caribou coffee",
+    "panera", "panera bread", "jamba juice", "smoothie king", "tropical smoothie",
+    "home depot", "lowes", "lowes's", "menards", "ace hardware",
+    "best buy", "staples", "office depot", "office max",
+    "cvs", "walgreens", "rite aid", "duane reade",
+    "kroger", "safeway", "albertsons", "publix", "whole foods", "whole foods market",
+    "trader joe's", "trader joes", "aldi", "lidl", "sprouts",
+    "dollar general", "dollar tree", "family dollar", "99 cents only",
+    "7-eleven", "7 eleven", "circle k", "speedway", "wawa", "sheetz", "quik trip", "qt",
+    "shell", "exxon", "chevron", "bp", "mobil", "conoco", "phillips 66", "valero",
+    "marriott", "hilton", "hyatt", "holiday inn", "best western", "hampton inn",
+    "fedex", "ups", "ups store", "u.s. postal service", "usps", "dhl",
+    "autozone", "oreilly", "oreilly auto", "advance auto", "napa auto",
+    "jiffy lube", "take 5 oil change", "valvoline", "firestone", "goodyear",
+    "gamestop", "petco", "petsmart", "bed bath & beyond", "bed bath and beyond",
+    "mattress firm", "ashley furniture", "la-z-boy", "lazy boy",
+    "att store", "verizon", "verizon wireless", "t-mobile", "tmobile", "sprint", "at&t",
+    "h&r block", "hr block", "jackson hewitt", "liberty tax",
+    "massage envy", "european wax center", "hand & stone", "hand and stone",
+    "great clips", "supercuts", "sport clips", "fantastic sams",
+    "dentistry", "aspen dental", "heartland dental", "comfort dental",
+    "concentra", "urgent care", "minute clinic", "cvs minute clinic",
+    "america's best", "americas best", "lenscrafters", "pearle vision",
+    "enterprise", "enterprise rent-a-car", "hertz", "avis", "budget", "national car rental",
+    "hobby lobby", "michaels", "joann", "jo-ann", "joann fabrics",
+    "dave & buster's", "dave and busters", "main event", "topgolf", "top golf",
+    "amc", "amc theatres", "regal", "cinemark", "movie tavern",
+    "planet fitness", "la fitness", "24 hour fitness", "equinox", "anytime fitness",
+    "big lots", "ross", "tj maxx", "t.j. maxx", "marshalls", "homegoods", "burlington",
+    "j.c. penney", "jcpenney", "kohl's", "kohls",
+    "dicks sporting goods", "dick's sporting goods", "academy sports", "rei ",
+    "bass pro", "cabela's", "cabelas", "scheels",
+    "apple store", "microsoft store", "samsung",
+    "ikea", "wayfair", "pottery barn", "west elm", "crate and barrel",
+    "bath & body works", "victoria's secret", "victorias secret", "ulta",
+    "sephora", "lush", "body shop",
+    "dairy queen", "dq ", "baskin-robbins", "baskin robbins", "cold stone", "ben & jerry's",
+    "cinnabon", "auntie anne's", "pretzel maker", "wetzel's", "jamba",
+    "jersey mike's", "jersey mikes", "blaze pizza", "mod pizza", "&pizza",
+    "raising cane's", "raising canes", "zaxby's", "zaxbys", "bojangles",
+    "cava", "sweetgreen", "salata", "corelife", "freshii",
+    "first watch", "another broken egg", "snooze", "black bear diner",
+    "red robin", "red robin gourmet burgers", "famous dave's", "famous daves",
+    "texas roadhouse", "longhorn", "outback steakhouse", "bloomin brands",
+    "cracker barrel", "bob evans", "perkins", "village inn", "ihop",
+    "costa vida", "cafe rio", "mo' bettahs", "mo bettahs", "swig", "fiiz",
+    "crumbl", "insomnia cookies", "great american cookies", "potbelly",
+])
+
+def is_large_chain(display_name):
+    """Return True if this business appears to be a large chain / big box (exclude from results)."""
+    if not display_name or not display_name.strip():
+        return False
+    n = display_name.lower().strip()
+    # Exact match
+    if n in LARGE_CHAIN_NAMES:
+        return True
+    # Name starts with a known chain (e.g. "McDonald's #1234", "Costco Wholesale")
+    for chain in LARGE_CHAIN_NAMES:
+        if n == chain or n.startswith(chain + " ") or n.startswith(chain + "#") or n.startswith(chain + "'") or n.startswith(chain + "-"):
+            return True
+        # Whole-word match: " ... chain ... " or start/end
+        if n.startswith(chain) and (len(n) == len(chain) or n[len(chain):len(chain)+1] in " #'-"):
+            return True
+    return False
+
 
 def map_google_type(primary_type, types):
     if primary_type and primary_type in GTYPE_MAP:
@@ -420,9 +601,12 @@ def search_businesses():
         try:
             places = []
             if q:
-                # User typed a query — use text search
-                search_q = f"{q} {category}" if category else q
-                places = google_text_search(search_q, lat, lng, radius)
+                if _looks_like_place_id(q):
+                    place = google_get_place(q)
+                    places = [place] if place else []
+                else:
+                    search_q = f"{q} {category}" if category else q
+                    places = google_text_search(search_q, lat, lng, radius)
             elif category:
                 # Category browsing — try to map to Google types
                 gtypes = SUBCAT_TO_GTYPE.get(category)
@@ -431,6 +615,16 @@ def search_businesses():
                 else:
                     # Fallback to text search with category name
                     places = google_text_search(category, lat, lng, radius)
+                # For chain-heavy categories, pull more results via "local" / "independent" queries
+                if category in CHAIN_HEAVY_CATEGORIES:
+                    seen_ids = {p.get("id") for p in places if p.get("id")}
+                    for extra_q in EXTRA_QUERIES_BY_CATEGORY.get(category, [])[:3]:
+                        more = google_text_search(extra_q, lat, lng, radius)
+                        for p in more:
+                            pid = p.get("id")
+                            if pid and pid not in seen_ids:
+                                seen_ids.add(pid)
+                                places.append(p)
             else:
                 # General explore
                 places = google_nearby_search(lat, lng, radius)
@@ -446,10 +640,48 @@ def search_businesses():
                 if nk in seen_names:
                     continue
                 seen_names.add(nk)
+                if is_large_chain(biz['name']):
+                    continue
                 businesses.append(biz)
 
-            # Sort by distance
-            businesses.sort(key=lambda x: x['distanceMeters'])
+            # Define big business chains to deprioritize
+            BIG_CHAINS = {
+                'walmart', 'costco', 'target', 'home depot', 'lowes', "lowe's",
+                'best buy', 'kroger', 'safeway', 'whole foods', 'albertsons',
+                'cvs', 'walgreens', 'rite aid', 'mcdonalds', "mcdonald's",
+                'burger king', 'wendys', "wendy's", 'taco bell', 'kfc',
+                'subway', 'starbucks', 'dunkin', "dunkin'", 'chipotle',
+                'panera', 'chick-fil-a', 'pizza hut', 'dominos', "domino's",
+                'papa johns', "papa john's", 'little caesars', 'olive garden',
+                'applebees', "applebee's", 'chilis', "chili's", 'red lobster',
+                'outback steakhouse', 'buffalo wild wings', 'ihop', 'dennys', "denny's",
+                'waffle house', 'panda express', 'five guys', 'in-n-out',
+                'shake shack', 'popeyes', 'arbys', "arby's", 'sonic',
+                'dairy queen', 'baskin robbins', 'cold stone', '7-eleven',
+                "7 eleven", 'circle k', 'shell', 'chevron', 'exxon', 'bp',
+                'mobil', 'marathon', 'speedway', 'sams club', "sam's club",
+                'kohls', "kohl's", 'jcpenney', 'macys', "macy's", 'nordstrom',
+                'tjmaxx', 'tj maxx', 'marshalls', 'ross', 'burlington',
+                'petco', 'petsmart', 'autozone', 'oreilly', "o'reilly",
+                'napa', 'jiffy lube', 'valvoline', 'discount tire',
+                'firestone', 'goodyear', 'pep boys', 'home goods',
+                'bed bath', 'bath & body', 'ulta', 'sephora', 'sally beauty',
+                'great clips', 'supercuts', 'sport clips', 'fantastic sams',
+                '24 hour fitness', 'la fitness', 'planet fitness', 'anytime fitness',
+                'gold gym', "gold's gym", 'marriott', 'hilton', 'hyatt',
+                'holiday inn', 'best western', 'comfort inn', 'hampton inn',
+                'courtyard', 'residence inn', 'springhill', 'fairfield inn',
+            }
+
+            # Sort: small businesses first (by distance), then big chains (by distance)
+            def sort_key(biz):
+                name_lower = biz['name'].lower()
+                is_big_chain = any(chain in name_lower for chain in BIG_CHAINS)
+                # Return tuple: (is_big_chain, distance)
+                # False sorts before True, so small businesses come first
+                return (is_big_chain, biz['distanceMeters'])
+
+            businesses.sort(key=sort_key)
             set_cached(ck, businesses)
             log.info(f"Fetched & cached {len(businesses)} businesses")
 
@@ -572,6 +804,165 @@ def geocode():
         return jsonify({'error': f'Geocoding failed: {str(e)}'}), 502
 
 
+# ─── DiscountAPI: map category to our dashboard categories ─────
+DEAL_CATEGORY_MAP = {
+    'health': 'Health & Beauty',
+    'beauty': 'Health & Beauty',
+    'spa': 'Health & Beauty',
+    'salon': 'Health & Beauty',
+    'fitness': 'Health & Beauty',
+    'personal-training': 'Health & Beauty',
+    'food': 'Food & Drink',
+    'restaurant': 'Food & Drink',
+    'dining': 'Food & Drink',
+    'coffee': 'Food & Drink',
+    'bakery': 'Food & Drink',
+    'activities': 'Activities',
+    'things-to-do': 'Activities',
+    'entertainment': 'Activities',
+    'fun': 'Activities',
+    'auto': 'Auto & Home',
+    'automotive': 'Auto & Home',
+    'home': 'Auto & Home',
+    'home-services': 'Auto & Home',
+}
+
+# Outgoing: our UI category (from filter) → DiscountAPI category_slugs (comma-separated).
+OUR_CATEGORY_TO_API_SLUGS = {
+    'Health & Beauty': ['spa', 'beauty', 'salon', 'personal-training', 'fitness', 'health'],
+    'Food & Drink': ['food', 'restaurant', 'dining', 'coffee', 'bakery'],
+    'Activities': ['activities', 'things-to-do', 'entertainment', 'fun'],
+    'Auto & Home': ['auto', 'automotive', 'home', 'home-services'],
+}
+
+
+def _map_deal_category(category_name, category_slug):
+    if not category_slug:
+        slug = (category_name or '').lower().replace(' ', '-').replace('&', '')
+    else:
+        slug = category_slug.lower()
+    return DEAL_CATEGORY_MAP.get(slug) or DEAL_CATEGORY_MAP.get(
+        slug.split('-')[0] if slug else ''
+    ) or 'Activities'
+
+
+def fetch_discount_api_deals(location, radius=15, category_slugs=None, query=None, page=1, per_page=20):
+    """Call DiscountAPI v2/deals and return normalized deals for the frontend."""
+    if not DISCOUNT_API_KEY or DISCOUNT_API_KEY == 'your_discount_api_key_here':
+        return [], 'no_api_key'
+    url = 'https://api.discountapi.com/v2/deals'
+    params = {
+        'api_key': DISCOUNT_API_KEY,
+        'location': location,
+        'radius': min(int(radius), 25),
+        'per_page': min(int(per_page), 20),
+        'page': max(1, int(page)),
+        'online': 'false',
+    }
+    if category_slugs:
+        params['category_slugs'] = category_slugs if isinstance(category_slugs, str) else ','.join(category_slugs)
+    if query:
+        params['query'] = query
+    try:
+        r = req.get(url, params=params, timeout=12)
+        if r.status_code == 401:
+            return [], 'invalid_key'
+        r.raise_for_status()
+        data = r.json()
+    except Exception as e:
+        log.error(f"DiscountAPI error: {e}")
+        return [], 'api_error'
+    raw_deals = data.get('deals') or []
+    out = []
+    for i, item in enumerate(raw_deals):
+        d = item.get('deal') or item
+        merchant = d.get('merchant') or {}
+        addr = merchant.get('address') or ''
+        locality = merchant.get('locality') or ''
+        region = merchant.get('region') or ''
+        location_str = ', '.join(x for x in [addr, locality, region] if x)
+        cat_name = d.get('category_name') or ''
+        cat_slug = d.get('category_slug') or ''
+        our_cat = _map_deal_category(cat_name, cat_slug)
+        value = float(d.get('value') or 0)
+        price = float(d.get('price') or 0)
+        pct = float(d.get('discount_percentage') or 0)
+        if pct <= 0 and value > 0 and price < value:
+            pct = round((1 - price / value) * 100)
+        out.append({
+            'id': f"api_{d.get('id', i)}",
+            'name': merchant.get('name') or 'Local Business',
+            'title': (d.get('title') or '')[:120],
+            'location': location_str or 'Local area',
+            'distance': None,
+            'rating': None,
+            'reviews': None,
+            'originalPrice': round(value, 0),
+            'salePrice': round(price, 0),
+            'finalPrice': round(price, 2),
+            'discount': round(pct),
+            'code': None,
+            'category': our_cat,
+            'subcategory': cat_name or our_cat,
+            'image': d.get('image_url') or FALLBACK_IMAGE,
+            'popular': (d.get('number_sold') or 0) > 10,
+            'url': d.get('url'),
+        })
+    return out, None
+
+
+@app.route('/api/deals', methods=['GET'])
+def deals():
+    """Proxy to DiscountAPI for local deals. Keeps API key server-side."""
+    location = request.args.get('location', '').strip()
+    lat = request.args.get('lat', type=float)
+    lng = request.args.get('lng', type=float)
+    if not location and (lat is not None and lng is not None):
+        location = f"{lat},{lng}"
+    if not location:
+        location = "40.5622,-111.9297"
+    radius = request.args.get('radius', 15)
+    category = request.args.get('category', '').strip()
+    query = request.args.get('q', '').strip()
+    page = request.args.get('page', 1, type=int)
+    per_page = min(request.args.get('per_page', 20, type=int), 20)
+    category_slugs = None
+    if category:
+        category_slugs = OUR_CATEGORY_TO_API_SLUGS.get(category)
+        if not category_slugs:
+            slug = category.lower().replace(' ', '-').replace('&', '')
+            category_slugs = [slug] if slug else None
+        if category_slugs:
+            category_slugs = ','.join(category_slugs)
+    deals_list, err = fetch_discount_api_deals(
+        location=location, radius=radius, category_slugs=category_slugs,
+        query=query or None, page=page, per_page=per_page
+    )
+    if err == 'no_api_key':
+        return jsonify({
+            'deals': [], 'total': 0, 'page': page, 'perPage': per_page,
+            'error': 'Deals API key not configured. Add DISCOUNT_API_KEY to backend/.env',
+            'source': 'placeholder'
+        })
+    if err == 'invalid_key':
+        return jsonify({
+            'deals': [], 'total': 0, 'page': page, 'perPage': per_page,
+            'error': 'Invalid deals API key.', 'source': 'api'
+        })
+    if err == 'api_error':
+        return jsonify({
+            'deals': [], 'total': 0, 'page': page, 'perPage': per_page,
+            'error': 'Could not load deals. Try again later.', 'source': 'api'
+        })
+    return jsonify({
+        'deals': deals_list,
+        'total': len(deals_list),
+        'page': page,
+        'perPage': per_page,
+        'source': 'api'
+    })
+
+
 @app.route('/api/health')
 def health():
     has_key = bool(GOOGLE_API_KEY)
@@ -579,11 +970,11 @@ def health():
 
 
 if __name__ == '__main__':
-    log.info("Starting Spark API v6 (Google Places) on port 5000...")
+    log.info("Starting Spark API v6 (Google Places) on port 5001...")
     if not GOOGLE_API_KEY:
         log.warning("=" * 60)
         log.warning("  GOOGLE_PLACES_API_KEY is NOT set!")
         log.warning("  Add it to backend/.env:")
         log.warning("  GOOGLE_PLACES_API_KEY=AIzaSy...")
         log.warning("=" * 60)
-    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5001)))
