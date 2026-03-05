@@ -456,7 +456,7 @@ const HeroSection = ({theme, onNavigate, isDarkMode}) => {
                         fontSize: 'clamp(2.5rem, 5vw, 4rem)', fontWeight: '800',
                         marginBottom: '1.5rem', lineHeight: '1.08',
                         fontFamily: "'Poppins', sans-serif", letterSpacing: '-0.035em',
-                        color: '#fff'
+                        color: theme.text
                     }}>
                         Sparking the Fire for <span style={{fontStyle: 'italic', fontWeight: '400'}}>Local Businesses</span>
                     </h1>

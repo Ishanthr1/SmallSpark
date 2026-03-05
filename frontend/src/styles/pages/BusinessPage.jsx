@@ -11,7 +11,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useUser, UserButton } from '@clerk/clerk-react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
@@ -584,6 +584,7 @@ function bizPinIcon() {
 const BusinessPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useUser();
     const photoInputRef = useRef(null);
 
@@ -773,8 +774,31 @@ const BusinessPage = () => {
         </div>
     );
 
-    /* ─── Error ────────────────────────────────────────────── */
-    if (error || !biz) return (
+    /* ─── Error (business not found) ────────────────────────────── */
+    if (error || !biz) {
+        const fromDealErr = location.state?.fromDeal;
+        if (fromDealErr?.url) {
+            return (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundColor: th.bg, fontFamily: "'Poppins', sans-serif", padding: '2rem' }}>
+                    <AlertCircle size={48} color={th.textMuted} style={{ marginBottom: '1rem', opacity: 0.6 }} />
+                    <h2 style={{ color: th.text, fontSize: '1.2rem', marginBottom: '0.5rem', textAlign: 'center' }}>Business not found</h2>
+                    <p style={{ color: th.textMuted, fontSize: '0.85rem', marginBottom: '1rem', textAlign: 'center' }}>We couldn't find "{id}" in our directory. You can still view the deal on the provider's website.</p>
+                    <a href={fromDealErr.url} target="_blank" rel="noopener noreferrer" style={{
+                        display: 'flex', alignItems: 'center', gap: '0.4rem',
+                        padding: '0.65rem 1.2rem', borderRadius: '10px', backgroundColor: th.greenAccent,
+                        color: '#fff', textDecoration: 'none', fontWeight: '700', fontSize: '0.9rem',
+                        fontFamily: "'Poppins', sans-serif",
+                    }}><ExternalLink size={18} /> View deal on website</a>
+                    <button onClick={() => navigate('/dashboard')} style={{
+                        marginTop: '1.5rem', padding: '0.5rem 1.2rem', borderRadius: '10px',
+                        border: `1px solid ${th.border}`, backgroundColor: 'transparent',
+                        cursor: 'pointer', fontWeight: '600', fontSize: '0.85rem',
+                        fontFamily: "'Poppins', sans-serif", color: th.text,
+                    }}><ChevronLeft size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '0.3rem' }} /> Back to Dashboard</button>
+                </div>
+            );
+        }
+        return (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: th.bg, fontFamily: "'Poppins', sans-serif", padding: '2rem' }}>
             <AlertCircle size={48} color={th.redAccent} style={{ marginBottom: '1rem', opacity: 0.6 }} />
             <h2 style={{ color: th.text, fontSize: '1.2rem', marginBottom: '0.5rem' }}>Business not found</h2>
@@ -786,9 +810,11 @@ const BusinessPage = () => {
                 display: 'flex', alignItems: 'center', gap: '0.3rem',
             }}><ChevronLeft size={16} /> Back to Dashboard</button>
         </div>
-    );
+        );
+    }
 
     const highlights = getHighlights();
+    const fromDeal = location.state?.fromDeal;
 
     return (
         <div style={{ fontFamily: "'Poppins', -apple-system, sans-serif", backgroundColor: th.bg, color: th.text, minHeight: '100vh' }}>
@@ -957,6 +983,20 @@ const BusinessPage = () => {
                    onMouseLeave={e => { if (!isFav) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = th.textSecondary }}}>
                     <Bookmark size={15} fill={isFav ? th.text : 'none'} /> {isFav ? 'Saved' : 'Save'}
                 </button>
+
+                {fromDeal?.url && (
+                    <a href={fromDeal.url} target="_blank" rel="noopener noreferrer" style={{
+                        display: 'flex', alignItems: 'center', gap: '0.35rem',
+                        padding: '0.5rem 0.9rem', borderRadius: '8px', border: 'none',
+                        backgroundColor: th.greenAccent, color: '#fff',
+                        cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem',
+                        fontFamily: "'Poppins', sans-serif", textDecoration: 'none',
+                        transition: 'all 0.15s',
+                    }} onMouseEnter={e => { e.currentTarget.style.opacity = '0.9'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                       onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'none' }}>
+                        <ExternalLink size={15} /> View deal on website
+                    </a>
+                )}
             </div>
 
             {/* ── Main Content ─────────────────────────────────── */}

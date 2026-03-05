@@ -23,6 +23,9 @@ CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET","POST","OPTIO
 
 GOOGLE_API_KEY = os.environ.get('GOOGLE_PLACES_API_KEY', '')
 
+# DiscountAPI — free tier for local deals (https://discountapi.com)
+DISCOUNT_API_KEY = os.environ.get('DISCOUNT_API_KEY', '')
+
 if not GOOGLE_API_KEY:
     log.warning("⚠️  GOOGLE_PLACES_API_KEY not set! Add it to backend/.env")
 
@@ -721,6 +724,165 @@ def geocode():
         })
     except Exception as e:
         return jsonify({'error': f'Geocoding failed: {str(e)}'}), 502
+
+
+# ─── DiscountAPI: map category to our dashboard categories ─────
+DEAL_CATEGORY_MAP = {
+    'health': 'Health & Beauty',
+    'beauty': 'Health & Beauty',
+    'spa': 'Health & Beauty',
+    'salon': 'Health & Beauty',
+    'fitness': 'Health & Beauty',
+    'personal-training': 'Health & Beauty',
+    'food': 'Food & Drink',
+    'restaurant': 'Food & Drink',
+    'dining': 'Food & Drink',
+    'coffee': 'Food & Drink',
+    'bakery': 'Food & Drink',
+    'activities': 'Activities',
+    'things-to-do': 'Activities',
+    'entertainment': 'Activities',
+    'fun': 'Activities',
+    'auto': 'Auto & Home',
+    'automotive': 'Auto & Home',
+    'home': 'Auto & Home',
+    'home-services': 'Auto & Home',
+}
+
+# Outgoing: our UI category (from filter) → DiscountAPI category_slugs (comma-separated).
+OUR_CATEGORY_TO_API_SLUGS = {
+    'Health & Beauty': ['spa', 'beauty', 'salon', 'personal-training', 'fitness', 'health'],
+    'Food & Drink': ['food', 'restaurant', 'dining', 'coffee', 'bakery'],
+    'Activities': ['activities', 'things-to-do', 'entertainment', 'fun'],
+    'Auto & Home': ['auto', 'automotive', 'home', 'home-services'],
+}
+
+
+def _map_deal_category(category_name, category_slug):
+    if not category_slug:
+        slug = (category_name or '').lower().replace(' ', '-').replace('&', '')
+    else:
+        slug = category_slug.lower()
+    return DEAL_CATEGORY_MAP.get(slug) or DEAL_CATEGORY_MAP.get(
+        slug.split('-')[0] if slug else ''
+    ) or 'Activities'
+
+
+def fetch_discount_api_deals(location, radius=15, category_slugs=None, query=None, page=1, per_page=20):
+    """Call DiscountAPI v2/deals and return normalized deals for the frontend."""
+    if not DISCOUNT_API_KEY or DISCOUNT_API_KEY == 'your_discount_api_key_here':
+        return [], 'no_api_key'
+    url = 'https://api.discountapi.com/v2/deals'
+    params = {
+        'api_key': DISCOUNT_API_KEY,
+        'location': location,
+        'radius': min(int(radius), 25),
+        'per_page': min(int(per_page), 20),
+        'page': max(1, int(page)),
+        'online': 'false',
+    }
+    if category_slugs:
+        params['category_slugs'] = category_slugs if isinstance(category_slugs, str) else ','.join(category_slugs)
+    if query:
+        params['query'] = query
+    try:
+        r = req.get(url, params=params, timeout=12)
+        if r.status_code == 401:
+            return [], 'invalid_key'
+        r.raise_for_status()
+        data = r.json()
+    except Exception as e:
+        log.error(f"DiscountAPI error: {e}")
+        return [], 'api_error'
+    raw_deals = data.get('deals') or []
+    out = []
+    for i, item in enumerate(raw_deals):
+        d = item.get('deal') or item
+        merchant = d.get('merchant') or {}
+        addr = merchant.get('address') or ''
+        locality = merchant.get('locality') or ''
+        region = merchant.get('region') or ''
+        location_str = ', '.join(x for x in [addr, locality, region] if x)
+        cat_name = d.get('category_name') or ''
+        cat_slug = d.get('category_slug') or ''
+        our_cat = _map_deal_category(cat_name, cat_slug)
+        value = float(d.get('value') or 0)
+        price = float(d.get('price') or 0)
+        pct = float(d.get('discount_percentage') or 0)
+        if pct <= 0 and value > 0 and price < value:
+            pct = round((1 - price / value) * 100)
+        out.append({
+            'id': f"api_{d.get('id', i)}",
+            'name': merchant.get('name') or 'Local Business',
+            'title': (d.get('title') or '')[:120],
+            'location': location_str or 'Local area',
+            'distance': None,
+            'rating': None,
+            'reviews': None,
+            'originalPrice': round(value, 0),
+            'salePrice': round(price, 0),
+            'finalPrice': round(price, 2),
+            'discount': round(pct),
+            'code': None,
+            'category': our_cat,
+            'subcategory': cat_name or our_cat,
+            'image': d.get('image_url') or FALLBACK_IMAGE,
+            'popular': (d.get('number_sold') or 0) > 10,
+            'url': d.get('url'),
+        })
+    return out, None
+
+
+@app.route('/api/deals', methods=['GET'])
+def deals():
+    """Proxy to DiscountAPI for local deals. Keeps API key server-side."""
+    location = request.args.get('location', '').strip()
+    lat = request.args.get('lat', type=float)
+    lng = request.args.get('lng', type=float)
+    if not location and (lat is not None and lng is not None):
+        location = f"{lat},{lng}"
+    if not location:
+        location = "40.5622,-111.9297"
+    radius = request.args.get('radius', 15)
+    category = request.args.get('category', '').strip()
+    query = request.args.get('q', '').strip()
+    page = request.args.get('page', 1, type=int)
+    per_page = min(request.args.get('per_page', 20, type=int), 20)
+    category_slugs = None
+    if category:
+        category_slugs = OUR_CATEGORY_TO_API_SLUGS.get(category)
+        if not category_slugs:
+            slug = category.lower().replace(' ', '-').replace('&', '')
+            category_slugs = [slug] if slug else None
+        if category_slugs:
+            category_slugs = ','.join(category_slugs)
+    deals_list, err = fetch_discount_api_deals(
+        location=location, radius=radius, category_slugs=category_slugs,
+        query=query or None, page=page, per_page=per_page
+    )
+    if err == 'no_api_key':
+        return jsonify({
+            'deals': [], 'total': 0, 'page': page, 'perPage': per_page,
+            'error': 'Deals API key not configured. Add DISCOUNT_API_KEY to backend/.env',
+            'source': 'placeholder'
+        })
+    if err == 'invalid_key':
+        return jsonify({
+            'deals': [], 'total': 0, 'page': page, 'perPage': per_page,
+            'error': 'Invalid deals API key.', 'source': 'api'
+        })
+    if err == 'api_error':
+        return jsonify({
+            'deals': [], 'total': 0, 'page': page, 'perPage': per_page,
+            'error': 'Could not load deals. Try again later.', 'source': 'api'
+        })
+    return jsonify({
+        'deals': deals_list,
+        'total': len(deals_list),
+        'page': page,
+        'perPage': per_page,
+        'source': 'api'
+    })
 
 
 @app.route('/api/health')
