@@ -1,14 +1,21 @@
 import React, {useState, useEffect, useRef, useCallback} from 'react';
-import {useNavigate} from 'react-router-dom';
+import {useNavigate, Link} from 'react-router-dom';
 import {SignInButton, SignUpButton, UserButton, useUser} from '@clerk/clerk-react';
 import {
     Search, MapPin, Star, Heart, TrendingUp, Sparkles, X, Check,
     Store, Users, Award, Zap, Filter, ChevronRight, ArrowRight,
     Globe, Shield, Clock, Coffee, Scissors, Utensils, Dumbbell,
     ShoppingBag, Wrench, Palette, Music, Phone, Mail, Moon, Sun,
-    ChevronLeft, Languages
+    ChevronLeft, Languages, Car
 } from 'lucide-react';
 import InteractiveGlobe from './InteractiveGlobe';
+
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+async function apiFetch(url) {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(r.statusText || 'Request failed');
+    return r.json();
+}
 
 // ─── Theme Colors ─────────────────────────────────────────────
 const lightTheme = {
@@ -71,14 +78,14 @@ const darkTheme = {
 
 // ─── Data ─────────────────────────────────────────────────────
 const categories = [
-    {name: 'Food & Dining', icon: Utensils, count: '1,234', description: 'Restaurants, cafes, and food trucks'},
-    {name: 'Retail & Shopping', icon: ShoppingBag, count: '856', description: 'Local shops and boutiques'},
-    {name: 'Health & Beauty', icon: Heart, count: '642', description: 'Salons, spas, and wellness'},
-    {name: 'Professional Services', icon: Award, count: '523', description: 'Business and consulting'},
-    {name: 'Arts & Crafts', icon: Palette, count: '398', description: 'Creative studios and galleries'},
-    {name: 'Home Services', icon: Wrench, count: '467', description: 'Repair and maintenance'},
-    {name: 'Entertainment', icon: Music, count: '289', description: 'Events and activities'},
-    {name: 'Fitness & Wellness', icon: Dumbbell, count: '356', description: 'Gyms and fitness centers'}
+    {name: 'Food & Dining', icon: Utensils, count: '1,847', description: 'Restaurants, cafes, and food trucks', dashboardCategory: 'Dinner'},
+    {name: 'Retail & Shopping', icon: ShoppingBag, count: '924', description: 'Local shops and boutiques', dashboardCategory: 'Shopping Malls'},
+    {name: 'Health & Beauty', icon: Heart, count: '612', description: 'Salons, spas, and wellness', dashboardCategory: 'Hair Salons'},
+    {name: 'Home Services', icon: Wrench, count: '533', description: 'Repair and maintenance', dashboardCategory: 'Plumbers'},
+    {name: 'Arts & Culture', icon: Palette, count: '387', description: 'Bookstores and creative spots', dashboardCategory: 'Bookstores'},
+    {name: 'Auto Services', icon: Car, count: '441', description: 'Repair, wash, and more', dashboardCategory: 'Auto Repair'},
+    {name: 'Entertainment', icon: Music, count: '298', description: 'Events and activities', dashboardCategory: 'Nightlife'},
+    {name: 'Fitness & Wellness', icon: Dumbbell, count: '356', description: 'Gyms and fitness centers', dashboardCategory: 'Gyms'}
 ];
 
 const features = [
@@ -97,6 +104,12 @@ const reviews = [
     {quote: "The category filtering and smart recommendations are incredible. Spark understands what I'm looking for before I even finish typing.", name: "Priya Patel", role: "Food Enthusiast", rating: 5},
     {quote: "Our family uses Spark to support local businesses every weekend. It's become part of our routine to discover something new together.", name: "David Chen", role: "Community Member", rating: 5}
 ];
+
+// Categories to sample for the Featured carousel (variety across food, retail, services, etc.)
+const FEATURED_CATEGORIES = ['Coffee & Cafes', 'Hair Salons', 'Bookstores', 'Gyms', 'Pizza', 'Spas', 'Bakeries', 'Florists'];
+const FEATURED_CENTER = { lat: 40.56, lng: -111.93 };
+const FEATURED_PER_CATEGORY = 2;
+const FEATURED_MAX_TOTAL = 14;
 
 const typingPhrases = [
     "Connect with authentic local businesses, discover exclusive deals, and support your community — all in one place.",
@@ -213,31 +226,106 @@ const DiagonalDivider = ({fromColor, toColor, direction = 'left', height = 60}) 
 const FeatureCard = ({feature, theme}) => {
     const tintKey = `tint${feature.tint}`;
     const borderKey = `borderTint${feature.tint}`;
+    const [hover, setHover] = useState(false);
     return (
-        <div style={{backgroundColor: theme[tintKey] || theme.cardBg, border: `1.5px solid ${theme[borderKey] || theme.border}`, borderRadius: '16px', padding: '2rem', height: '100%', cursor: 'default'}}>
-            <div style={{width: '46px', height: '46px', borderRadius: '12px', border: `1.5px solid ${theme[borderKey] || theme.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.25rem', color: theme.text}}>
-                <feature.icon size={21}/>
+        <Link to="/dashboard" style={{textDecoration: 'none', color: 'inherit', display: 'block', height: '100%'}} aria-label={`${feature.title} - go to dashboard`}>
+        <div
+            className="carousel-feature-card"
+            onMouseEnter={() => setHover(true)}
+            onMouseLeave={() => setHover(false)}
+            style={{
+                backgroundColor: theme[tintKey] || theme.cardBg,
+                border: `1.5px solid ${theme[borderKey] || theme.border}`,
+                borderRadius: '18px',
+                padding: '2rem',
+                height: '100%',
+                cursor: 'pointer',
+                transition: 'transform 0.35s ease, box-shadow 0.35s ease, border-color 0.3s ease',
+                transform: hover ? 'translateY(-6px) scale(1.02)' : 'translateY(0) scale(1)',
+                boxShadow: hover ? `0 20px 40px -12px rgba(0,0,0,0.2)` : 'none',
+            }}
+        >
+            <div style={{
+                width: '52px', height: '52px', borderRadius: '14px',
+                border: `1.5px solid ${theme[borderKey] || theme.border}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                marginBottom: '1.35rem', color: theme.text,
+                transition: 'transform 0.3s ease',
+                transform: hover ? 'scale(1.08)' : 'scale(1)',
+            }}>
+                <feature.icon size={24}/>
             </div>
-            <h3 style={{fontSize: '1.08rem', fontWeight: '600', marginBottom: '0.5rem', color: theme.text}}>{feature.title}</h3>
-            <p style={{fontSize: '0.86rem', color: theme.textSecondary, lineHeight: '1.6', margin: 0}}>{feature.text}</p>
+            <h3 style={{fontSize: '1.12rem', fontWeight: '700', marginBottom: '0.5rem', color: theme.text, letterSpacing: '-0.02em'}}>{feature.title}</h3>
+            <p style={{fontSize: '0.88rem', color: theme.textSecondary, lineHeight: '1.65', margin: 0}}>{feature.text}</p>
+            <p style={{fontSize: '0.8rem', fontWeight: '600', color: hover ? theme.accent : 'transparent', marginTop: '1rem', marginBottom: 0, display: 'flex', alignItems: 'center', gap: '0.4rem', minHeight: '1.5rem', transition: 'color 0.25s ease'}}>
+                <ChevronRight size={16}/> See how it works
+            </p>
         </div>
+        </Link>
     );
 };
 
 // ─── Category Card ────────────────────────────────────────────
 const CategoryCard = ({cat, theme, tint}) => {
+    const [hover, setHover] = useState(false);
     const tintKey = `tint${tint}`;
     const borderKey = `borderTint${tint}`;
-    return (
-        <div style={{backgroundColor: theme[tintKey] || theme.cardBg, border: `1.5px solid ${theme[borderKey] || theme.border}`, borderRadius: '16px', padding: '1.75rem 1.25rem', textAlign: 'center', height: '100%', cursor: 'default'}}>
-            <div style={{width: '50px', height: '50px', borderRadius: '13px', border: `1.5px solid ${theme[borderKey] || theme.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 0.9rem', color: theme.text}}>
-                <cat.icon size={23}/>
+    const dashboardCategory = cat.dashboardCategory;
+    const toDashboard = dashboardCategory ? `/dashboard?category=${encodeURIComponent(dashboardCategory)}` : null;
+
+    const card = (
+        <div
+            className="carousel-category-card"
+            onMouseEnter={() => setHover(true)}
+            onMouseLeave={() => setHover(false)}
+            style={{
+                backgroundColor: theme[tintKey] || theme.cardBg,
+                border: `1.5px solid ${theme[borderKey] || theme.border}`,
+                borderRadius: '18px',
+                padding: '1.75rem 1.35rem',
+                textAlign: 'center',
+                height: '100%',
+                cursor: toDashboard ? 'pointer' : 'default',
+                transition: 'transform 0.35s ease, box-shadow 0.35s ease',
+                transform: hover ? 'translateY(-8px) scale(1.03)' : 'translateY(0) scale(1)',
+                boxShadow: hover ? `0 24px 48px -14px rgba(0,0,0,0.18)` : 'none',
+            }}
+        >
+            <div style={{
+                width: '56px', height: '56px', borderRadius: '16px',
+                border: `1.5px solid ${theme[borderKey] || theme.border}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 1rem', color: theme.text,
+                transition: 'transform 0.35s ease',
+                transform: hover ? 'scale(1.12) rotate(-3deg)' : 'scale(1) rotate(0deg)',
+            }}>
+                <cat.icon size={26}/>
             </div>
-            <h3 style={{fontSize: '0.98rem', fontWeight: '600', marginBottom: '0.25rem', color: theme.text}}>{cat.name}</h3>
-            <p style={{fontSize: '0.75rem', color: theme.textMuted, marginBottom: '0.15rem'}}>{cat.description}</p>
-            <p style={{fontSize: '0.75rem', color: theme.textSecondary, fontWeight: '500', margin: 0}}>{cat.count} businesses</p>
+            <h3 style={{fontSize: '1.02rem', fontWeight: '700', marginBottom: '0.3rem', color: theme.text, letterSpacing: '-0.02em'}}>{cat.name}</h3>
+            <p style={{fontSize: '0.76rem', color: theme.textMuted, marginBottom: '0.5rem', lineHeight: '1.35'}}>{cat.description}</p>
+            <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
+                padding: '0.4rem 0.85rem', borderRadius: '999px',
+                backgroundColor: hover ? theme.accent : theme.cardBgAlt,
+                color: hover ? theme.accentText : theme.textSecondary,
+                fontSize: '0.8rem', fontWeight: '600',
+                transition: 'background-color 0.25s ease, color 0.25s ease',
+            }}>
+                <span>{cat.count}</span>
+                <span style={{fontWeight: '500', opacity: 0.9}}>businesses</span>
+                {hover && toDashboard && <ChevronRight size={14} style={{marginLeft: '0.15rem'}}/>}
+            </div>
         </div>
     );
+
+    if (toDashboard) {
+        return (
+            <Link to={toDashboard} style={{textDecoration: 'none', color: 'inherit', display: 'block', height: '100%'}} aria-label={`Browse ${cat.name} on dashboard`}>
+                {card}
+            </Link>
+        );
+    }
+    return card;
 };
 
 // ─── Review Card ──────────────────────────────────────────────
@@ -255,6 +343,73 @@ const ReviewCard = ({review, theme}) => (
         </div>
     </div>
 );
+
+// ─── Sample Business Card (for carousel) ───────────────────────
+const BusinessCard = ({business, theme}) => {
+    const hasLink = business.id;
+    const categoryDisplay = business.subcategory || business.category || 'Local Business';
+    const description = business.description && business.description.trim() ? business.description : `${categoryDisplay} in your area. Discover more on Spark.`;
+    const businessPath = hasLink ? `/business/${encodeURIComponent(business.id)}` : null;
+
+    const card = (
+        <div style={{
+            backgroundColor: theme.cardBg, border: `1.5px solid ${theme.border}`, borderRadius: '16px',
+            padding: 0, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            cursor: hasLink ? 'pointer' : 'default',
+        }}>
+            {business.image && (
+                <div style={{width: '100%', height: '120px', flexShrink: 0, overflow: 'hidden'}}>
+                    <img src={business.image} alt="" style={{width: '100%', height: '100%', objectFit: 'cover'}}/>
+                </div>
+            )}
+            <div style={{padding: '1.5rem', flex: 1, display: 'flex', flexDirection: 'column'}}>
+                <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem'}}>
+                    {!business.image && (
+                        <div style={{width: '40px', height: '40px', borderRadius: '10px', backgroundColor: theme.cardBgAlt, border: `1px solid ${theme.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: theme.text}}>
+                            <Store size={20}/>
+                        </div>
+                    )}
+                    <div style={{flex: 1, minWidth: 0}}>
+                        <h3 style={{fontSize: '1rem', fontWeight: '600', margin: 0, color: theme.text}}>{business.name}</h3>
+                        <p style={{fontSize: '0.72rem', color: theme.textMuted, margin: '0.15rem 0 0 0'}}>{categoryDisplay}</p>
+                    </div>
+                    {(business.rating != null) && (
+                        <div style={{display: 'flex', alignItems: 'center', gap: '2px'}}>
+                            <Star size={14} fill="#f59e0b" color="#f59e0b"/>
+                            <span style={{fontSize: '0.85rem', fontWeight: '600', color: theme.text}}>{Number(business.rating).toFixed(1)}</span>
+                            {business.reviewCount != null && business.reviewCount > 0 && (
+                                <span style={{fontSize: '0.72rem', color: theme.textMuted, marginLeft: '2px'}}>({business.reviewCount})</span>
+                            )}
+                        </div>
+                    )}
+                </div>
+                <p style={{fontSize: '0.82rem', color: theme.textSecondary, lineHeight: '1.55', margin: '0 0 1rem 0', flex: 1}}>{description}</p>
+                {business.reviews && business.reviews.length > 0 && (
+                    <div style={{borderTop: `1px solid ${theme.border}`, paddingTop: '0.75rem'}}>
+                        <p style={{fontSize: '0.7rem', fontWeight: '600', color: theme.textMuted, margin: '0 0 0.35rem 0', textTransform: 'uppercase', letterSpacing: '0.04em'}}>What people say</p>
+                        {business.reviews.slice(0, 2).map((rev, i) => (
+                            <p key={i} style={{fontSize: '0.78rem', color: theme.textSecondary, fontStyle: 'italic', margin: '0 0 0.25rem 0', lineHeight: '1.4'}}>"{rev}"</p>
+                        ))}
+                    </div>
+                )}
+                {hasLink && (
+                    <p style={{fontSize: '0.78rem', fontWeight: '600', color: theme.accent, marginTop: '0.75rem', marginBottom: 0, display: 'flex', alignItems: 'center', gap: '0.35rem'}}>
+                        View details <ChevronRight size={14}/>
+                    </p>
+                )}
+            </div>
+        </div>
+    );
+
+    if (hasLink && businessPath) {
+        return (
+            <Link to={businessPath} style={{textDecoration: 'none', color: 'inherit', display: 'block', height: '100%'}} aria-label={`View ${business.name} business page`}>
+                {card}
+            </Link>
+        );
+    }
+    return card;
+};
 
 // ─── Hero Section with Globe ──────────────────────────────────
 const HeroSection = ({theme, onNavigate, isDarkMode}) => {
@@ -299,11 +454,11 @@ const HeroSection = ({theme, onNavigate, isDarkMode}) => {
 
                     <h1 style={{
                         fontSize: 'clamp(2.5rem, 5vw, 4rem)', fontWeight: '800',
-                        marginBottom: '1.5rem', color: theme.text, lineHeight: '1.08',
-                        fontFamily: "'Poppins', sans-serif", letterSpacing: '-0.035em'
+                        marginBottom: '1.5rem', lineHeight: '1.08',
+                        fontFamily: "'Poppins', sans-serif", letterSpacing: '-0.035em',
+                        color: '#fff'
                     }}>
-                        Find Local Businesses<br/>
-                        <span style={{fontStyle: 'italic', fontWeight: '400'}}>You'll Love</span>
+                        Sparking the Fire for <span style={{fontStyle: 'italic', fontWeight: '400'}}>Local Businesses</span>
                     </h1>
 
                     <div style={{minHeight: '4.2rem', marginBottom: '2.5rem'}}>
@@ -383,15 +538,21 @@ const HeroSection = ({theme, onNavigate, isDarkMode}) => {
 };
 
 // ─── Carousel Section ─────────────────────────────────────────
-const CarouselSection = ({title, subtitle, items, renderCard, theme, bgColor, speed, cardWidth, reverse}) => (
+const CarouselSection = ({title, subtitle, items, renderCard, theme, bgColor, speed, cardWidth, reverse, loading}) => (
     <section style={{padding: '5rem 0', backgroundColor: bgColor, position: 'relative', zIndex: 1, '--carousel-bg': bgColor}}>
         <div style={{maxWidth: '1280px', margin: '0 auto', padding: '0 2rem'}}>
-            <div style={{textAlign: 'center', marginBottom: '2.5rem'}}>
-                <h2 style={{fontSize: '2rem', fontWeight: '700', marginBottom: '0.5rem', color: theme.text, letterSpacing: '-0.025em'}}>{title}</h2>
-                <p style={{fontSize: '0.98rem', color: theme.textSecondary, maxWidth: '480px', margin: '0 auto'}}>{subtitle}</p>
+            <div style={{textAlign: 'center', marginBottom: '2.75rem'}}>
+                <h2 style={{fontSize: '2.1rem', fontWeight: '800', marginBottom: '0.6rem', color: theme.text, letterSpacing: '-0.03em', lineHeight: '1.2'}}>{title}</h2>
+                <p style={{fontSize: '1rem', color: theme.textSecondary, maxWidth: '520px', margin: '0 auto', lineHeight: '1.55'}}>{subtitle}</p>
             </div>
         </div>
-        <InfiniteCarousel items={items} renderCard={renderCard} speed={speed || 35} cardWidth={cardWidth || 320} gap={20} reverse={reverse || false}/>
+        {loading ? (
+            <div style={{textAlign: 'center', padding: '2rem', color: theme.textMuted, fontSize: '0.95rem'}}>Loading businesses…</div>
+        ) : !items || items.length === 0 ? (
+            <div style={{textAlign: 'center', padding: '2rem', color: theme.textMuted, fontSize: '0.95rem'}}>No businesses to show right now. Try again later.</div>
+        ) : (
+            <InfiniteCarousel items={items} renderCard={renderCard} speed={speed || 35} cardWidth={cardWidth || 320} gap={20} reverse={reverse || false}/>
+        )}
     </section>
 );
 
@@ -470,10 +631,48 @@ const HomePage = () => {
     const {isSignedIn} = useUser();
     const [isDarkMode, setIsDarkMode] = useState(true);
     const [scrollProgress, setScrollProgress] = useState(0);
+    const [featuredBusinesses, setFeaturedBusinesses] = useState([]);
+    const [featuredLoading, setFeaturedLoading] = useState(true);
     const theme = isDarkMode ? darkTheme : lightTheme;
 
     const SITE_URL = 'https://YOUR_SITE_URL.com';
     const translateUrl = `https://translate.google.com/website?sl=en&tl=es&hl=en-US&u=${encodeURIComponent(SITE_URL)}`;
+
+    useEffect(() => {
+        let cancelled = false;
+        async function fetchFeatured() {
+            setFeaturedLoading(true);
+            const { lat, lng } = FEATURED_CENTER;
+            const radius = 15000;
+            const seenIds = new Set();
+            const merged = [];
+            try {
+                for (const category of FEATURED_CATEGORIES) {
+                    if (merged.length >= FEATURED_MAX_TOTAL) break;
+                    const params = new URLSearchParams({
+                        lat: String(lat), lng: String(lng), radius: String(radius),
+                        category, page: '1', per_page: String(FEATURED_PER_CATEGORY)
+                    });
+                    const data = await apiFetch(`${API}/search?${params}`);
+                    const list = data.businesses || [];
+                    for (const b of list) {
+                        if (b.id && !seenIds.has(b.id)) {
+                            seenIds.add(b.id);
+                            merged.push(b);
+                            if (merged.length >= FEATURED_MAX_TOTAL) break;
+                        }
+                    }
+                }
+                if (!cancelled) setFeaturedBusinesses(merged);
+            } catch (_) {
+                if (!cancelled) setFeaturedBusinesses([]);
+            } finally {
+                if (!cancelled) setFeaturedLoading(false);
+            }
+        }
+        fetchFeatured();
+        return () => { cancelled = true; };
+    }, []);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -537,13 +736,13 @@ const HomePage = () => {
             <HeroSection theme={theme} onNavigate={handleButtonClick} isDarkMode={isDarkMode}/>
 
             <DiagonalDivider fromColor={theme.bg} toColor={theme.bgAlt} direction="left" height={64}/>
-            <CarouselSection title="Why Choose Spark?" subtitle="Everything you need to discover and support local businesses" items={features} theme={theme} bgColor={theme.bgAlt} speed={30} cardWidth={320} reverse={false} renderCard={(feature) => <FeatureCard feature={feature} theme={theme}/>}/>
+            <CarouselSection title="Why Choose Spark?" subtitle="Tools that make finding and supporting local businesses effortless — explore the features below" items={features} theme={theme} bgColor={theme.bgAlt} speed={30} cardWidth={320} reverse={false} renderCard={(feature) => <FeatureCard feature={feature} theme={theme}/>}/>
 
             <DiagonalDivider fromColor={theme.bgAlt} toColor={theme.bg} direction="right" height={64}/>
-            <CarouselSection title="Browse by Category" subtitle="Explore thousands of local businesses organized by industry" items={categories} theme={theme} bgColor={theme.bg} speed={25} cardWidth={250} reverse={true} renderCard={(cat, i) => <CategoryCard cat={cat} theme={theme} tint={tintColors[i]}/>}/>
+            <CarouselSection title="Browse by Category" subtitle="Jump into what you need — from food and retail to fitness and home services" items={categories} theme={theme} bgColor={theme.bg} speed={25} cardWidth={250} reverse={true} renderCard={(cat, i) => <CategoryCard cat={cat} theme={theme} tint={tintColors[i]}/>}/>
 
             <DiagonalDivider fromColor={theme.bg} toColor={theme.bgAlt} direction="left" height={64}/>
-            <CarouselSection title="What Our Users Say" subtitle="Real stories from people who love supporting local businesses" items={reviews} theme={theme} bgColor={theme.bgAlt} speed={28} cardWidth={340} reverse={false} renderCard={(review) => <ReviewCard review={review} theme={theme}/>}/>
+            <CarouselSection title="Featured Local Businesses" subtitle="Real businesses from your area — explore by category on the dashboard" items={featuredBusinesses} theme={theme} bgColor={theme.bgAlt} speed={26} cardWidth={320} reverse={false} renderCard={(business) => <BusinessCard business={business} theme={theme}/>} loading={featuredLoading}/>
 
             <DiagonalDivider fromColor={theme.bgAlt} toColor={theme.accent} direction="right" height={64}/>
             <CTASection theme={theme} onNavigate={handleButtonClick}/>

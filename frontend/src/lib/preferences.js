@@ -78,3 +78,31 @@ export async function setFavorites(clerkUserId, favorites) {
   if (!Array.isArray(favorites)) throw new Error('setFavorites requires an array');
   return setPreferences(clerkUserId, { [FAVORITES_KEY]: favorites });
 }
+
+const REVIEWS_KEY = 'reviews';
+
+/**
+ * Get saved reviews written by the user (each has businessId, businessName, rating, text, date, id).
+ * @param {string} clerkUserId - From useUser().id
+ * @returns {Promise<Array<object>>} Array of review objects (or [] if none)
+ */
+export async function getReviews(clerkUserId) {
+  if (!clerkUserId) return [];
+  const row = await getPreferences(clerkUserId);
+  const list = row?.preferences?.[REVIEWS_KEY];
+  return Array.isArray(list) ? list : [];
+}
+
+/**
+ * Add a review and persist to preferences.
+ * @param {string} clerkUserId - From useUser().id
+ * @param {object} review - { businessId, businessName, rating, text, date, id }
+ * @returns {Promise<object>} Updated preferences from Supabase
+ */
+export async function addReview(clerkUserId, review) {
+  if (!clerkUserId) throw new Error('addReview requires clerkUserId');
+  if (!review || typeof review !== 'object') throw new Error('addReview requires a review object');
+  const existing = await getReviews(clerkUserId);
+  const next = [review, ...existing];
+  return setPreferences(clerkUserId, { [REVIEWS_KEY]: next });
+}

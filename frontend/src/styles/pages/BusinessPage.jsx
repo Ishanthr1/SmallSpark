@@ -29,6 +29,7 @@ import {
 
 const API = 'http://localhost:5000/api';
 const FALLBACK_IMG = 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&h=500&fit=crop';
+import { getFavorites, setFavorites, addReview } from '../../lib/preferences';
 
 /* ─── Theme ────────────────────────────────────────────────── */
 const light = {
@@ -632,6 +633,7 @@ const BusinessPage = () => {
 
     /* ─── Handle review submit ─────────────────────────────── */
     const handleReviewSubmit = ({ rating, text }) => {
+        const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         const newReview = {
             id: `user_r_${Date.now()}`,
             name: user?.fullName || user?.firstName || 'You',
@@ -639,7 +641,7 @@ const BusinessPage = () => {
             reviewCount: 1,
             photoCount: 0,
             rating,
-            date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            date: dateStr,
             text,
             helpful: 0,
             thanks: 0,
@@ -647,7 +649,29 @@ const BusinessPage = () => {
             isNew: true,
         };
         setReviews(prev => [newReview, ...prev]);
+        if (user?.id && biz) {
+            addReview(user.id, {
+                id: newReview.id,
+                businessId: biz.id,
+                businessName: biz.name,
+                rating,
+                text,
+                date: dateStr,
+            }).catch(() => {});
+        }
     };
+
+    /* ─── Toggle save (persist to favorites) ─────────────────── */
+    const handleSaveToggle = useCallback(async () => {
+        if (!user?.id || !biz) return;
+        try {
+            const list = await getFavorites(user.id);
+            const isCurrentlyFav = list.some(b => b.id === biz.id);
+            const next = isCurrentlyFav ? list.filter(b => b.id !== biz.id) : [...list, biz];
+            await setFavorites(user.id, next);
+            setIsFav(!isCurrentlyFav);
+        } catch (_) {}
+    }, [user?.id, biz]);
 
     /* ─── Open Google Maps directions ──────────────────────── */
     const openDirections = () => {
@@ -689,6 +713,14 @@ const BusinessPage = () => {
         };
         if (id) fetchBusiness();
     }, [id]);
+
+    /* ─── Sync saved state from persisted favorites ─────────── */
+    useEffect(() => {
+        if (!user?.id || !biz?.id) return;
+        getFavorites(user.id)
+            .then(list => setIsFav(Array.isArray(list) && list.some(b => b.id === biz.id)))
+            .catch(() => {});
+    }, [user?.id, biz?.id]);
 
     /* ─── Parse hours ──────────────────────────────────────── */
     const parseHours = () => {
@@ -913,7 +945,7 @@ const BusinessPage = () => {
                 </button>
 
                 {/* Save */}
-                <button onClick={() => setIsFav(!isFav)} style={{
+                <button onClick={handleSaveToggle} style={{
                     display: 'flex', alignItems: 'center', gap: '0.35rem',
                     padding: '0.5rem 0.9rem', borderRadius: '8px',
                     border: `1.5px solid ${th.border}`,

@@ -1,6 +1,6 @@
-import React, {useState, useRef, useEffect, useCallback} from 'react';
+import React, {useState, useRef, useEffect, useCallback, useMemo} from 'react';
 import {useUser, UserButton, useClerk} from '@clerk/clerk-react';
-import {useNavigate} from 'react-router-dom';
+import {useNavigate, useSearchParams} from 'react-router-dom';
 import {MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents} from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -19,7 +19,7 @@ import {
 
 import DealsContent from './DealsPage';
 import FriendsPage from './FriendsPage';
-import { getPreferences, setPreferences, getFavorites, setFavorites } from '../../lib/preferences';
+import { getPreferences, setPreferences, getFavorites, setFavorites, getReviews } from '../../lib/preferences';
 
 const API = 'http://localhost:5000/api';
 
@@ -390,23 +390,20 @@ const CatBar = ({th, onSel, sel, onAISearch}) => {
                             padding: "0.5rem 0.9rem",
                             fontSize: "0.8rem",
                             fontWeight: "600",
-                            color: "#fff",
-                            background: "linear-gradient(135deg, #8b5cf6, #6366f1)",
-                            border: "none",
-                            borderRadius: "8px",
+                            color: th.text,
+                            background: "transparent",
+                            border: `1.5px solid ${th.border}`,
+                            borderRadius: "10px",
                             cursor: "pointer",
                             fontFamily: "'Poppins',sans-serif",
                             whiteSpace: "nowrap",
-                            boxShadow: "0 2px 8px rgba(99,102,241,0.3)",
                             transition: "all 0.2s ease",
                         }}
                         onMouseEnter={(e) => {
-                            e.currentTarget.style.boxShadow = "0 4px 16px rgba(99,102,241,0.5)";
-                            e.currentTarget.style.transform = "translateY(-1px)";
+                            e.currentTarget.style.backgroundColor = th.hoverBg;
                         }}
                         onMouseLeave={(e) => {
-                            e.currentTarget.style.boxShadow = "0 2px 8px rgba(99,102,241,0.3)";
-                            e.currentTarget.style.transform = "none";
+                            e.currentTarget.style.backgroundColor = "transparent";
                         }}
                     >
                         <Sparkles size={14}/>
@@ -517,7 +514,7 @@ const BizCard = ({biz, th, hov, onHov, onFav, isFav, onNavigate}) => {
                     </div>}
                     <button onClick={e => {
                         e.stopPropagation();
-                        onFav(biz.id, biz)
+                        onFav(biz)
                     }} style={{
                         marginLeft: 'auto',
                         background: 'none',
@@ -770,6 +767,7 @@ const AISearchView = ({th, onBack}) => (
    DISCOVER TAB
    ═══════════════════════════════════════════════════════════════ */
 const DiscoverContent = ({th, favs, toggleFav}) => {
+    const [searchParams] = useSearchParams();
     const [biz, setBiz] = useState([]);
     const [loading, setLoad] = useState(false);
     const [err, setErr] = useState('');
@@ -793,6 +791,26 @@ const DiscoverContent = ({th, favs, toggleFav}) => {
     const [showAI, setShowAI] = useState(false);
     const lastSearch = useRef({});
     const [flyTarget, setFlyTarget] = useState(null);
+    const categoryFromUrlSearched = useRef(false);
+
+    useEffect(() => {
+        const categoryFromUrl = searchParams.get('category');
+        if (categoryFromUrl) setSelCat(categoryFromUrl);
+        if (!categoryFromUrl || categoryFromUrlSearched.current) return;
+        categoryFromUrlSearched.current = true;
+        const DEFAULT_LAT = 40.56;
+        const DEFAULT_LNG = -111.93;
+        doSearch({ category: categoryFromUrl, query: '', lat: DEFAULT_LAT, lng: DEFAULT_LNG, useAsUserLoc: false });
+        if (navigator.geolocation && navigator.geolocation.getCurrentPosition) {
+            navigator.geolocation.getCurrentPosition(
+                pos => doSearch({ category: categoryFromUrl, query: '', lat: pos.coords.latitude, lng: pos.coords.longitude, useAsUserLoc: true }),
+                () => {},
+                { timeout: 8000, maximumAge: 60000 }
+            );
+        }
+    // Category-from-URL: only depend on searchParams so this runs when navigating with ?category=; doSearch is stable and we pass full opts
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams]);
 
     useEffect(() => {
         const h = e => {
@@ -836,7 +854,8 @@ const DiscoverContent = ({th, favs, toggleFav}) => {
     /* ─── MAIN SEARCH ──────────────────────────────────────── */
     const doSearch = useCallback(async (opts = {}) => {
         const q = opts.query ?? sq, cat = opts.category ?? selCat, loc = opts.location ?? lq, pg = opts.page || 1;
-        let lat = mapC?.lat || uLoc?.lat, lng = mapC?.lng || uLoc?.lng;
+        let lat = opts.lat ?? mapC?.lat ?? uLoc?.lat;
+        let lng = opts.lng ?? mapC?.lng ?? uLoc?.lng;
 
         lastSearch.current = {query: q, category: cat, location: loc, page: pg};
 
@@ -864,6 +883,17 @@ const DiscoverContent = ({th, favs, toggleFav}) => {
             return
         }
 
+        if (opts.lat != null && opts.lng != null) {
+            setMapC({lat, lng});
+            setFlyTarget({lat, lng});
+            if (opts.useAsUserLoc) {
+                setULoc({lat, lng});
+                setLq('Current Location');
+            } else {
+                setLq('South Jordan, UT');
+            }
+        }
+
         setLoad(true);
         setErr('');
         setSearched(true);
@@ -882,7 +912,7 @@ const DiscoverContent = ({th, favs, toggleFav}) => {
             const d = await apiFetch(`${API}/search?${p}`);
 
             let businesses = d.businesses || [];
-            if (uLoc || loc === 'Current Location') {
+            if (uLoc || opts.useAsUserLoc || loc === 'Current Location') {
                 businesses = [...businesses].sort((a, b) => (a.distanceMeters || 99999) - (b.distanceMeters || 99999));
             }
 
@@ -1296,6 +1326,103 @@ const PH = ({th, icon: I, title, desc}) => (<div style={{
     style={{fontSize: '1.1rem', fontWeight: '600', color: th.text, marginBottom: '0.3rem'}}>{title}</h2><p
     style={{fontSize: '0.85rem', color: th.textMuted}}>{desc}</p></div>);
 
+/* ─── Favorites tab: list of favorited businesses ───────────── */
+const FavoritesContent = ({ th, favoritesList, toggleFav, onNavigate }) => {
+    if (!favoritesList || favoritesList.length === 0) {
+        return <PH th={th} icon={Heart} title="Favorites" desc="Heart businesses to save them here"/>;
+    }
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+            <div style={{ padding: '0.8rem 1rem', borderBottom: `1px solid ${th.border}` }}>
+                <span style={{ fontSize: '0.9rem', fontWeight: '600', color: th.text }}>Your favorites</span>
+                <span style={{ fontSize: '0.78rem', color: th.textMuted, marginLeft: '0.4rem' }}>{favoritesList.length} saved</span>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+                {favoritesList.map(b => (
+                    <BizCard
+                        key={b.id}
+                        biz={b}
+                        th={th}
+                        hov={false}
+                        onHov={() => {}}
+                        onFav={toggleFav}
+                        isFav={true}
+                        onNavigate={onNavigate}
+                    />
+                ))}
+            </div>
+        </div>
+    );
+};
+
+/* ─── Reviews tab: list of user's reviews ────────────────────── */
+const ReviewsContent = ({ th, userId }) => {
+    const [reviews, setReviews] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const nav = useNavigate();
+
+    useEffect(() => {
+        if (!userId) {
+            setLoading(false);
+            return;
+        }
+        getReviews(userId)
+            .then(list => setReviews(list || []))
+            .catch(() => setReviews([]))
+            .finally(() => setLoading(false));
+    }, [userId]);
+
+    if (loading) {
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '0.5rem' }}>
+                <Loader2 size={28} color={th.textMuted} style={{ animation: 'spin 1s linear infinite' }} />
+                <span style={{ fontSize: '0.85rem', color: th.textMuted }}>Loading your reviews...</span>
+            </div>
+        );
+    }
+    if (!reviews.length) {
+        return <PH th={th} icon={Star} title="My Reviews" desc="Your reviews show here"/>;
+    }
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+            <div style={{ padding: '0.8rem 1rem', borderBottom: `1px solid ${th.border}` }}>
+                <span style={{ fontSize: '0.9rem', fontWeight: '600', color: th.text }}>Your reviews</span>
+                <span style={{ fontSize: '0.78rem', color: th.textMuted, marginLeft: '0.4rem' }}>{reviews.length}</span>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem' }}>
+                {reviews.map(r => (
+                    <div
+                        key={r.id}
+                        onClick={() => nav(`/business/${encodeURIComponent(r.businessName)}`)}
+                        style={{
+                            padding: '1rem',
+                            marginBottom: '0.5rem',
+                            backgroundColor: th.cardBg,
+                            border: `1px solid ${th.border}`,
+                            borderRadius: '10px',
+                            cursor: 'pointer',
+                            transition: 'background-color 0.15s',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.backgroundColor = th.hoverBg; }}
+                        onMouseLeave={e => { e.currentTarget.style.backgroundColor = th.cardBg; }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.35rem' }}>
+                            <div style={{ display: 'flex', gap: 1 }}>
+                                {[1, 2, 3, 4, 5].map(s => (
+                                    <Star key={s} size={12} fill={s <= (r.rating || 0) ? '#f59e0b' : 'none'} color="#f59e0b" />
+                                ))}
+                            </div>
+                            <span style={{ fontSize: '0.8rem', fontWeight: '600', color: th.text }}>{r.businessName}</span>
+                        </div>
+                        <p style={{ fontSize: '0.82rem', color: th.textSecondary, margin: '0 0 0.25rem', lineHeight: 1.5 }}>{r.text}</p>
+                        <span style={{ fontSize: '0.7rem', color: th.textMuted }}>{r.date}</span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 const SettingsContent = ({th, isDark, setDark, userId}) => {
     const { signOut } = useClerk();
     const nav = useNavigate();
@@ -1486,71 +1613,50 @@ const SettingsContent = ({th, isDark, setDark, userId}) => {
 const DashboardPage = () => {
     const {user} = useUser();
     const nav = useNavigate();
+    const [searchParams] = useSearchParams();
     const [isDark, setDark] = useState(true);
     const [tab, setTab] = useState('discover');
     const [sbO, setSbO] = useState(false);
-    const [favs, setFavs] = useState(new Set());
-    const [favBusinesses, setFavBusinesses] = useState([]);
-    const favsLoadedRef = useRef(false);
+    const [favoritesList, setFavoritesList] = useState([]);
     const th = isDark ? dark : light;
     const sw = sbO ? 230 : 58;
 
     useEffect(() => {
         if (!user?.id) return;
-        getFavorites(user.id).then(arr => {
-            setFavBusinesses(Array.isArray(arr) ? arr : []);
-            setFavs(new Set((Array.isArray(arr) ? arr : []).map(b => b.id)));
-            setTimeout(() => { favsLoadedRef.current = true; }, 0);
-        }).catch(() => { favsLoadedRef.current = true; });
+        getFavorites(user.id)
+            .then(list => setFavoritesList(Array.isArray(list) ? list : []))
+            .catch(() => setFavoritesList([]));
     }, [user?.id]);
 
-    useEffect(() => {
-        if (user?.id) return;
-        favsLoadedRef.current = false;
-        setFavs(new Set());
-        setFavBusinesses([]);
-    }, [user?.id]);
+    const favs = useMemo(() => new Set(favoritesList.map(b => b.id)), [favoritesList]);
 
-    useEffect(() => {
-        if (!user?.id || !favsLoadedRef.current) return;
-        setFavorites(user.id, favBusinesses).catch(() => {});
-    }, [user?.id, favBusinesses]);
+    const tF = useCallback(biz => {
+        if (!user?.id || !biz?.id) return;
+        const isFav = favoritesList.some(b => b.id === biz.id);
+        let next;
+        if (isFav) {
+            next = favoritesList.filter(b => b.id !== biz.id);
+        } else {
+            next = [...favoritesList, biz];
+        }
+        setFavoritesList(next);
+        setFavorites(user.id, next).catch(() => setFavoritesList(favoritesList));
+    }, [user?.id, favoritesList]);
 
-    const tF = useCallback((id, biz) => {
-        setFavs(p => {
-            const n = new Set(p);
-            const isRemoving = n.has(id);
-            if (isRemoving) n.delete(id);
-            else n.add(id);
-            setFavBusinesses(fb =>
-                isRemoving ? fb.filter(b => b.id !== id) : (biz ? [...fb.filter(b => b.id !== id), biz] : fb)
-            );
-            return n;
-        });
-    }, []);
+    const onNavigateToBiz = useCallback(name => {
+        nav(`/business/${encodeURIComponent(name)}`);
+    }, [nav]);
 
     const content = () => {
         switch (tab) {
             case 'discover':
                 return <DiscoverContent th={th} favs={favs} toggleFav={tF}/>;
             case 'favorites':
-                return favBusinesses.length === 0
-                    ? <PH th={th} icon={Heart} title="Favorites" desc="Heart businesses in Discover to save them here"/>
-                    : <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-                        <div style={{ padding: '0.6rem 1rem', borderBottom: `1px solid ${th.border}`, backgroundColor: th.bg }}>
-                            <h2 style={{ fontSize: '1rem', fontWeight: '600', color: th.text, margin: 0 }}>Favorites</h2>
-                            <p style={{ fontSize: '0.78rem', color: th.textMuted, margin: '0.2rem 0 0' }}>{favBusinesses.length} saved</p>
-                        </div>
-                        <div style={{ flex: 1, overflowY: 'auto' }}>
-                            {favBusinesses.map(b => <BizCard key={b.id} biz={b} th={th} hov={false} onHov={() => {}}
-                                onFav={tF} isFav={true}
-                                onNavigate={(name) => window.location.href = `/business/${encodeURIComponent(name)}`} />)}
-                        </div>
-                    </div>;
+                return <FavoritesContent th={th} favoritesList={favoritesList} toggleFav={tF} onNavigate={onNavigateToBiz}/>;
             case 'deals':
                 return <DealsContent th={th}/>;
             case 'reviews':
-                return <PH th={th} icon={Star} title="My Reviews" desc="Your reviews show here"/>;
+                return <ReviewsContent th={th} userId={user?.id}/>;
             case 'friends':
                 return <FriendsPage />;
             case 'settings':
