@@ -18,6 +18,8 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('spark')
 
 app = Flask(__name__)
+from digital_routes import digital_bp
+app.register_blueprint(digital_bp)
 CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET","POST","OPTIONS"],
      "allow_headers": ["Content-Type","Authorization"]}})
 
@@ -83,7 +85,7 @@ def google_nearby_search(lat, lng, radius, included_types=None):
                 "radius": min(radius, 50000.0)
             }
         },
-        "maxResultCount": 20,
+        "maxResultCount": 20,  # Google's max per request
         "languageCode": "en",
     }
     if included_types:
@@ -92,7 +94,27 @@ def google_nearby_search(lat, lng, radius, included_types=None):
     try:
         resp = req.post(url, json=body, headers=headers, timeout=12)
         resp.raise_for_status()
-        return resp.json().get("places", [])
+        data = resp.json()
+        places = data.get("places", [])
+
+        # Try to get more results with pagination if available
+        next_token = data.get("nextPageToken")
+        attempt = 0
+        while next_token and attempt < 4:  # Get up to 100 total (5 pages × 20)
+            attempt += 1
+            import time
+            time.sleep(0.5)  # Brief delay for pagination
+            body["pageToken"] = next_token
+            try:
+                resp = req.post(url, json=body, headers=headers, timeout=12)
+                resp.raise_for_status()
+                data = resp.json()
+                places.extend(data.get("places", []))
+                next_token = data.get("nextPageToken")
+            except:
+                break
+
+        return places
     except Exception as e:
         log.error(f"Nearby search error: {e}")
         return []
@@ -114,14 +136,34 @@ def google_text_search(query, lat, lng, radius):
                 "radius": min(radius, 50000.0)
             }
         },
-        "maxResultCount": 20,
+        "maxResultCount": 20,  # Google's max per request
         "languageCode": "en",
     }
 
     try:
         resp = req.post(url, json=body, headers=headers, timeout=12)
         resp.raise_for_status()
-        return resp.json().get("places", [])
+        data = resp.json()
+        places = data.get("places", [])
+
+        # Try to get more results with pagination if available
+        next_token = data.get("nextPageToken")
+        attempt = 0
+        while next_token and attempt < 4:  # Get up to 100 total (5 pages × 20)
+            attempt += 1
+            import time
+            time.sleep(0.5)  # Brief delay for pagination
+            body["pageToken"] = next_token
+            try:
+                resp = req.post(url, json=body, headers=headers, timeout=12)
+                resp.raise_for_status()
+                data = resp.json()
+                places.extend(data.get("places", []))
+                next_token = data.get("nextPageToken")
+            except:
+                break
+
+        return places
     except Exception as e:
         log.error(f"Text search error: {e}")
         return []

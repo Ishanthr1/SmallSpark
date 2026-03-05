@@ -10,7 +10,7 @@ import {
     Plane, MoreHorizontal, Scissors, Wrench, Dumbbell, Music, ShoppingBag,
     Coffee, Pizza, Truck, Flame, Waves, Tent, Bike, Hotel, Sparkles, Zap,
     BookOpen, Flower2, Dog, Award,
-    Phone, Droplets, Wind, Hammer, PaintBucket, Plug, Key,
+    Phone, Droplets, Wind, Hammer, Monitor, PaintBucket, Plug, Key,
     Thermometer, Sofa, Leaf, Shirt,
     HandMetal, Gamepad2, Church, Ticket, Landmark, ParkingCircle,
     Baby, Loader2, AlertCircle, Navigation, Glasses, Bone, PersonStanding,
@@ -19,6 +19,7 @@ import {
 
 import DealsContent from './DealsPage';
 import FriendsPage from './FriendsPage';
+import DigitalPage from './DigitalPage';
 import { getPreferences, setPreferences } from '../../lib/preferences';
 
 const API = 'http://localhost:5000/api';
@@ -185,6 +186,7 @@ const mainCategories = [
 
 const navTabs = [
     {id: 'discover', label: 'Discover', icon: Compass},
+    { id: 'digital', label: 'Digital', icon: Monitor },
     {id: 'favorites', label: 'Favorites', icon: Heart},
     {id: 'deals', label: 'Deals', icon: Tag},
     {id: 'reviews', label: 'My Reviews', icon: Star},
@@ -1500,6 +1502,8 @@ const DashboardPage = () => {
         switch (tab) {
             case 'discover':
                 return <DiscoverContent th={th} favs={favs} toggleFav={tF}/>;
+            case 'digital':
+                return <DigitalPage isDark={isDark} />;
             case 'favorites':
                 return <PH th={th} icon={Heart} title="Favorites" desc="Heart businesses to save them here"/>;
             case 'deals':
