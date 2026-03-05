@@ -2096,48 +2096,68 @@ const SettingsContent = ({th, isDark, setDark, userId}) => {
     };
 
     return (
-        <div style={{padding: '2rem 2.5rem', maxWidth: '500px', margin: '0 auto', overflowY: 'auto', height: '100%'}}>
-            <h1 style={{fontSize: '1.5rem', fontWeight: '700', color: th.text, marginBottom: '1.5rem'}}>Settings</h1>
+        <div style={{
+            padding: '2rem 3rem',
+            maxWidth: '1000px',
+            margin: '0 auto',
+            overflowY: 'auto',
+            height: '100%',
+            width: '100%',
+        }}>
+            <h1 style={{fontSize: '1.75rem', fontWeight: '700', color: th.text, marginBottom: '2rem'}}>Settings</h1>
 
-            {/* App toggles */}
-            {[{
-                title: 'Dark Mode', desc: 'Switch themes', isOn: isDark, fn: () => setDark(!isDark)
-            }, {
-                title: 'Notifications', desc: 'Deal & review alerts', isOn: true, fn: () => {}
-            }, {
-                title: 'Location Tracking', desc: 'Nearby businesses', isOn: true, fn: () => {}
-            }].map((it, i) => (
-                <div key={i} style={{
-                    backgroundColor: th.cardBg,
-                    border: `1px solid ${th.border}`,
-                    borderRadius: '12px',
-                    padding: '1rem',
-                    marginBottom: '0.6rem',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                }}>
-                    <div><h3 style={{fontSize: '0.88rem', fontWeight: '600', color: th.text, margin: '0 0 0.1rem'}}>{it.title}</h3>
-                        <p style={{fontSize: '0.72rem', color: th.textMuted, margin: 0}}>{it.desc}</p></div>
-                    <button onClick={it.fn} style={{
-                        width: '42px', height: '24px', borderRadius: '12px', border: 'none',
-                        backgroundColor: it.isOn ? th.accent : th.border, cursor: 'pointer', position: 'relative'
+            {/* App toggles - spread in a row */}
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '1rem',
+                marginBottom: '2rem',
+            }}>
+                {[{
+                    title: 'Dark Mode', desc: 'Switch themes', isOn: isDark, fn: () => setDark(!isDark)
+                }, {
+                    title: 'Notifications', desc: 'Deal & review alerts', isOn: true, fn: () => {}
+                }, {
+                    title: 'Location Tracking', desc: 'Nearby businesses', isOn: true, fn: () => {}
+                }].map((it, i) => (
+                    <div key={i} style={{
+                        backgroundColor: th.cardBg,
+                        border: `1px solid ${th.border}`,
+                        borderRadius: '12px',
+                        padding: '1.25rem',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
                     }}>
-                        <div style={{
-                            width: '18px', height: '18px', borderRadius: '50%',
-                            backgroundColor: it.isOn ? th.accentText : '#fff',
-                            position: 'absolute', top: '3px', left: it.isOn ? '21px' : '3px',
-                            transition: '0.3s', boxShadow: '0 1px 3px rgba(0,0,0,0.15)'
-                        }}/>
-                    </button>
-                </div>
-            ))}
+                        <div><h3 style={{fontSize: '0.88rem', fontWeight: '600', color: th.text, margin: '0 0 0.1rem'}}>{it.title}</h3>
+                            <p style={{fontSize: '0.72rem', color: th.textMuted, margin: 0}}>{it.desc}</p></div>
+                        <button onClick={it.fn} style={{
+                            width: '42px', height: '24px', borderRadius: '12px', border: 'none',
+                            backgroundColor: it.isOn ? th.accent : th.border, cursor: 'pointer', position: 'relative', flexShrink: 0
+                        }}>
+                            <div style={{
+                                width: '18px', height: '18px', borderRadius: '50%',
+                                backgroundColor: it.isOn ? th.accentText : '#fff',
+                                position: 'absolute', top: '3px', left: it.isOn ? '21px' : '3px',
+                                transition: '0.3s', boxShadow: '0 1px 3px rgba(0,0,0,0.15)'
+                            }}/>
+                        </button>
+                    </div>
+                ))}
+            </div>
 
-            {/* Taste Profile */}
-            <div style={{borderTop: `1px solid ${th.border}`, marginTop: '1.5rem', paddingTop: '1.5rem'}}>
-                <h2 style={{fontSize: '1rem', fontWeight: '700', color: th.text, marginBottom: '1.2rem'}}>Taste Profile</h2>
+            {/* Taste Profile - two columns */}
+            <div style={{
+                borderTop: `1px solid ${th.border}`,
+                marginTop: '1.5rem',
+                paddingTop: '2rem',
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '2rem 3rem',
+            }}>
+                <h2 style={{fontSize: '1rem', fontWeight: '700', color: th.text, marginBottom: '1.2rem', gridColumn: '1 / -1'}}>Taste Profile</h2>
 
-                <div style={{marginBottom: '1.2rem'}}>
+                <div>
                     <h3 style={{fontSize: '0.85rem', fontWeight: '600', color: th.text, marginBottom: '0.5rem'}}>Favorite Cuisines</h3>
                     <div style={{display: 'flex', flexWrap: 'wrap', gap: '0.4rem'}}>
                         {CUISINE_OPTIONS.map(c => (
@@ -2146,7 +2166,7 @@ const SettingsContent = ({th, isDark, setDark, userId}) => {
                     </div>
                 </div>
 
-                <div style={{marginBottom: '1.2rem'}}>
+                <div>
                     <h3 style={{fontSize: '0.85rem', fontWeight: '600', color: th.text, marginBottom: '0.5rem'}}>Business Categories</h3>
                     <div style={{display: 'flex', flexWrap: 'wrap', gap: '0.4rem'}}>
                         {CATEGORY_OPTIONS.map(c => (
@@ -2155,9 +2175,9 @@ const SettingsContent = ({th, isDark, setDark, userId}) => {
                     </div>
                 </div>
 
-                <div style={{marginBottom: '1.2rem'}}>
+                <div>
                     <h3 style={{fontSize: '0.85rem', fontWeight: '600', color: th.text, marginBottom: '0.5rem'}}>Price Level</h3>
-                    <div style={{display: 'flex', gap: '0.4rem'}}>
+                    <div style={{display: 'flex', flexWrap: 'wrap', gap: '0.4rem'}}>
                         {PRICE_LEVELS.map(p => (
                             <button key={p.v} onClick={() => setPriceLevel(priceLevel === p.v ? null : p.v)} style={{
                                 padding: '0.4rem 1rem', borderRadius: '8px',
@@ -2171,7 +2191,7 @@ const SettingsContent = ({th, isDark, setDark, userId}) => {
                     </div>
                 </div>
 
-                <div style={{marginBottom: '1.2rem'}}>
+                <div>
                     <h3 style={{fontSize: '0.85rem', fontWeight: '600', color: th.text, marginBottom: '0.5rem'}}>Preferred Distance</h3>
                     <div style={{display: 'flex', flexWrap: 'wrap', gap: '0.4rem'}}>
                         {DISTANCE_OPTIONS.map(d => (
@@ -2188,30 +2208,39 @@ const SettingsContent = ({th, isDark, setDark, userId}) => {
                     </div>
                 </div>
 
-                <button onClick={handleSaveAsync} disabled={saving || loaded === false} style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
-                    padding: '0.7rem 2rem', width: '100%', maxWidth: '320px',
-                    backgroundColor: saved ? '#16a34a' : th.accent, color: saved ? '#fff' : th.accentText,
-                    border: 'none', borderRadius: '10px', cursor: 'pointer',
-                    fontFamily: "'Poppins',sans-serif", fontWeight: '600', fontSize: '0.88rem',
-                    opacity: (saving || !loaded) ? 0.7 : 1, transition: '0.3s',
-                }}>
-                    <Save size={16}/>{saving ? 'Saving...' : saved ? 'Saved!' : 'Save Taste Profile'}
-                </button>
+                <div style={{gridColumn: '1 / -1'}}>
+                    <button onClick={handleSaveAsync} disabled={saving || loaded === false} style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+                        padding: '0.7rem 2rem', width: '100%', maxWidth: '320px',
+                        backgroundColor: saved ? '#16a34a' : th.accent, color: saved ? '#fff' : th.accentText,
+                        border: 'none', borderRadius: '10px', cursor: 'pointer',
+                        fontFamily: "'Poppins',sans-serif", fontWeight: '600', fontSize: '0.88rem',
+                        opacity: (saving || !loaded) ? 0.7 : 1, transition: '0.3s',
+                    }}>
+                        <Save size={16}/>{saving ? 'Saving...' : saved ? 'Saved!' : 'Save Taste Profile'}
+                    </button>
+                </div>
             </div>
 
-            {/* Account actions */}
-            <div style={{borderTop: `1px solid ${th.border}`, marginTop: '1.5rem', paddingTop: '1.5rem'}}>
+            {/* Account actions - spread in a row */}
+            <div style={{
+                borderTop: `1px solid ${th.border}`,
+                marginTop: '2rem',
+                paddingTop: '2rem',
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '1rem',
+            }}>
                 <button onClick={() => signOut(() => nav('/'))} style={{
                     display: 'flex', alignItems: 'center', gap: '0.65rem',
-                    padding: '0.65rem 1rem', width: '100%', maxWidth: '320px',
+                    padding: '0.65rem 1.5rem', minWidth: '140px',
                     backgroundColor: 'transparent', color: th.textSecondary,
                     border: `1px solid ${th.border}`, borderRadius: '10px', cursor: 'pointer',
-                    fontFamily: "'Poppins',sans-serif", fontSize: '0.85rem', marginBottom: '0.65rem',
+                    fontFamily: "'Poppins',sans-serif", fontSize: '0.85rem',
                 }}>Sign out</button>
                 <button onClick={handleDeleteAccount} style={{
                     display: 'flex', alignItems: 'center', gap: '0.65rem',
-                    padding: '0.65rem 1rem', width: '100%', maxWidth: '320px',
+                    padding: '0.65rem 1.5rem', minWidth: '140px',
                     backgroundColor: 'transparent', color: '#dc2626',
                     border: `1px solid #dc2626`, borderRadius: '10px', cursor: 'pointer',
                     fontFamily: "'Poppins',sans-serif", fontSize: '0.85rem',

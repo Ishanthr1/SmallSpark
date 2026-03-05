@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import DigitalBusinessPage from './DigitalBusinessPage.jsx';
 
-const API = 'http://localhost:5000/api';
+const API = 'http://localhost:5001/api';
 const FALLBACK_IMG = 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=480&h=320&fit=crop';
 
 const light = {

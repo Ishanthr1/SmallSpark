@@ -16,7 +16,7 @@ import {
     MessageSquare, BookOpen, TrendingUp, CheckCircle
 } from 'lucide-react';
 
-const API = 'http://localhost:5000/api';
+const API = 'http://localhost:5001/api';
 const FALLBACK_IMG = 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&h=500&fit=crop';
 
 /* ─── Theme ────────────────────────────────────────────────── */
