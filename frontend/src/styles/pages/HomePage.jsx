@@ -302,8 +302,8 @@ const HeroSection = ({theme, onNavigate, isDarkMode}) => {
                         marginBottom: '1.5rem', color: theme.text, lineHeight: '1.08',
                         fontFamily: "'Poppins', sans-serif", letterSpacing: '-0.035em'
                     }}>
-                        Find Local Businesses<br/>
-                        <span style={{fontStyle: 'italic', fontWeight: '400'}}>You'll Love</span>
+                        Sparking the Fire<br/>
+                        <span style={{fontStyle: 'italic', fontWeight: '400'}}>for local businesses</span>
                     </h1>
 
                     <div style={{minHeight: '4.2rem', marginBottom: '2.5rem'}}>

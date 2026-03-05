@@ -448,8 +448,44 @@ def search_businesses():
                 seen_names.add(nk)
                 businesses.append(biz)
 
-            # Sort by distance
-            businesses.sort(key=lambda x: x['distanceMeters'])
+            # Define big business chains to deprioritize
+            BIG_CHAINS = {
+                'walmart', 'costco', 'target', 'home depot', 'lowes', "lowe's",
+                'best buy', 'kroger', 'safeway', 'whole foods', 'albertsons',
+                'cvs', 'walgreens', 'rite aid', 'mcdonalds', "mcdonald's",
+                'burger king', 'wendys', "wendy's", 'taco bell', 'kfc',
+                'subway', 'starbucks', 'dunkin', "dunkin'", 'chipotle',
+                'panera', 'chick-fil-a', 'pizza hut', 'dominos', "domino's",
+                'papa johns', "papa john's", 'little caesars', 'olive garden',
+                'applebees', "applebee's", 'chilis', "chili's", 'red lobster',
+                'outback steakhouse', 'buffalo wild wings', 'ihop', 'dennys', "denny's",
+                'waffle house', 'panda express', 'five guys', 'in-n-out',
+                'shake shack', 'popeyes', 'arbys', "arby's", 'sonic',
+                'dairy queen', 'baskin robbins', 'cold stone', '7-eleven',
+                "7 eleven", 'circle k', 'shell', 'chevron', 'exxon', 'bp',
+                'mobil', 'marathon', 'speedway', 'sams club', "sam's club",
+                'kohls', "kohl's", 'jcpenney', 'macys', "macy's", 'nordstrom',
+                'tjmaxx', 'tj maxx', 'marshalls', 'ross', 'burlington',
+                'petco', 'petsmart', 'autozone', 'oreilly', "o'reilly",
+                'napa', 'jiffy lube', 'valvoline', 'discount tire',
+                'firestone', 'goodyear', 'pep boys', 'home goods',
+                'bed bath', 'bath & body', 'ulta', 'sephora', 'sally beauty',
+                'great clips', 'supercuts', 'sport clips', 'fantastic sams',
+                '24 hour fitness', 'la fitness', 'planet fitness', 'anytime fitness',
+                'gold gym', "gold's gym", 'marriott', 'hilton', 'hyatt',
+                'holiday inn', 'best western', 'comfort inn', 'hampton inn',
+                'courtyard', 'residence inn', 'springhill', 'fairfield inn',
+            }
+
+            # Sort: small businesses first (by distance), then big chains (by distance)
+            def sort_key(biz):
+                name_lower = biz['name'].lower()
+                is_big_chain = any(chain in name_lower for chain in BIG_CHAINS)
+                # Return tuple: (is_big_chain, distance)
+                # False sorts before True, so small businesses come first
+                return (is_big_chain, biz['distanceMeters'])
+
+            businesses.sort(key=sort_key)
             set_cached(ck, businesses)
             log.info(f"Fetched & cached {len(businesses)} businesses")
 

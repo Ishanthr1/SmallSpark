@@ -390,26 +390,22 @@ const CatBar = ({th, onSel, sel, onAISearch}) => {
                             padding: "0.5rem 0.9rem",
                             fontSize: "0.8rem",
                             fontWeight: "600",
-                            color: "#fff",
-                            background: "linear-gradient(135deg, #8b5cf6, #6366f1)",
+                            color: th.text,
+                            background: "transparent",
                             border: "none",
                             borderRadius: "8px",
                             cursor: "pointer",
                             fontFamily: "'Poppins',sans-serif",
                             whiteSpace: "nowrap",
-                            boxShadow: "0 2px 8px rgba(99,102,241,0.3)",
                             transition: "all 0.2s ease",
                         }}
                         onMouseEnter={(e) => {
-                            e.currentTarget.style.boxShadow = "0 4px 16px rgba(99,102,241,0.5)";
-                            e.currentTarget.style.transform = "translateY(-1px)";
+                            e.currentTarget.style.opacity = "0.7";
                         }}
                         onMouseLeave={(e) => {
-                            e.currentTarget.style.boxShadow = "0 2px 8px rgba(99,102,241,0.3)";
-                            e.currentTarget.style.transform = "none";
+                            e.currentTarget.style.opacity = "1";
                         }}
                     >
-                        <Sparkles size={14}/>
                         AI Search
                     </button>
                 </div>
