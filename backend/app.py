@@ -18,6 +18,8 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('spark')
 
 app = Flask(__name__)
+from digital_routes import digital_bp
+app.register_blueprint(digital_bp)
 CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET","POST","OPTIONS"],
      "allow_headers": ["Content-Type","Authorization"]}})
 
@@ -86,7 +88,7 @@ def google_nearby_search(lat, lng, radius, included_types=None):
                 "radius": min(radius, 50000.0)
             }
         },
-        "maxResultCount": 20,
+        "maxResultCount": 20,  # Google's max per request
         "languageCode": "en",
     }
     if included_types:
@@ -95,7 +97,27 @@ def google_nearby_search(lat, lng, radius, included_types=None):
     try:
         resp = req.post(url, json=body, headers=headers, timeout=12)
         resp.raise_for_status()
-        return resp.json().get("places", [])
+        data = resp.json()
+        places = data.get("places", [])
+
+        # Try to get more results with pagination if available
+        next_token = data.get("nextPageToken")
+        attempt = 0
+        while next_token and attempt < 4:  # Get up to 100 total (5 pages × 20)
+            attempt += 1
+            import time
+            time.sleep(0.5)  # Brief delay for pagination
+            body["pageToken"] = next_token
+            try:
+                resp = req.post(url, json=body, headers=headers, timeout=12)
+                resp.raise_for_status()
+                data = resp.json()
+                places.extend(data.get("places", []))
+                next_token = data.get("nextPageToken")
+            except:
+                break
+
+        return places
     except Exception as e:
         log.error(f"Nearby search error: {e}")
         return []
@@ -117,14 +139,34 @@ def google_text_search(query, lat, lng, radius):
                 "radius": min(radius, 50000.0)
             }
         },
-        "maxResultCount": 20,
+        "maxResultCount": 20,  # Google's max per request
         "languageCode": "en",
     }
 
     try:
         resp = req.post(url, json=body, headers=headers, timeout=12)
         resp.raise_for_status()
-        return resp.json().get("places", [])
+        data = resp.json()
+        places = data.get("places", [])
+
+        # Try to get more results with pagination if available
+        next_token = data.get("nextPageToken")
+        attempt = 0
+        while next_token and attempt < 4:  # Get up to 100 total (5 pages × 20)
+            attempt += 1
+            import time
+            time.sleep(0.5)  # Brief delay for pagination
+            body["pageToken"] = next_token
+            try:
+                resp = req.post(url, json=body, headers=headers, timeout=12)
+                resp.raise_for_status()
+                data = resp.json()
+                places.extend(data.get("places", []))
+                next_token = data.get("nextPageToken")
+            except:
+                break
+
+        return places
     except Exception as e:
         log.error(f"Text search error: {e}")
         return []
@@ -602,8 +644,44 @@ def search_businesses():
                     continue
                 businesses.append(biz)
 
-            # Sort by distance
-            businesses.sort(key=lambda x: x['distanceMeters'])
+            # Define big business chains to deprioritize
+            BIG_CHAINS = {
+                'walmart', 'costco', 'target', 'home depot', 'lowes', "lowe's",
+                'best buy', 'kroger', 'safeway', 'whole foods', 'albertsons',
+                'cvs', 'walgreens', 'rite aid', 'mcdonalds', "mcdonald's",
+                'burger king', 'wendys', "wendy's", 'taco bell', 'kfc',
+                'subway', 'starbucks', 'dunkin', "dunkin'", 'chipotle',
+                'panera', 'chick-fil-a', 'pizza hut', 'dominos', "domino's",
+                'papa johns', "papa john's", 'little caesars', 'olive garden',
+                'applebees', "applebee's", 'chilis', "chili's", 'red lobster',
+                'outback steakhouse', 'buffalo wild wings', 'ihop', 'dennys', "denny's",
+                'waffle house', 'panda express', 'five guys', 'in-n-out',
+                'shake shack', 'popeyes', 'arbys', "arby's", 'sonic',
+                'dairy queen', 'baskin robbins', 'cold stone', '7-eleven',
+                "7 eleven", 'circle k', 'shell', 'chevron', 'exxon', 'bp',
+                'mobil', 'marathon', 'speedway', 'sams club', "sam's club",
+                'kohls', "kohl's", 'jcpenney', 'macys', "macy's", 'nordstrom',
+                'tjmaxx', 'tj maxx', 'marshalls', 'ross', 'burlington',
+                'petco', 'petsmart', 'autozone', 'oreilly', "o'reilly",
+                'napa', 'jiffy lube', 'valvoline', 'discount tire',
+                'firestone', 'goodyear', 'pep boys', 'home goods',
+                'bed bath', 'bath & body', 'ulta', 'sephora', 'sally beauty',
+                'great clips', 'supercuts', 'sport clips', 'fantastic sams',
+                '24 hour fitness', 'la fitness', 'planet fitness', 'anytime fitness',
+                'gold gym', "gold's gym", 'marriott', 'hilton', 'hyatt',
+                'holiday inn', 'best western', 'comfort inn', 'hampton inn',
+                'courtyard', 'residence inn', 'springhill', 'fairfield inn',
+            }
+
+            # Sort: small businesses first (by distance), then big chains (by distance)
+            def sort_key(biz):
+                name_lower = biz['name'].lower()
+                is_big_chain = any(chain in name_lower for chain in BIG_CHAINS)
+                # Return tuple: (is_big_chain, distance)
+                # False sorts before True, so small businesses come first
+                return (is_big_chain, biz['distanceMeters'])
+
+            businesses.sort(key=sort_key)
             set_cached(ck, businesses)
             log.info(f"Fetched & cached {len(businesses)} businesses")
 
@@ -892,11 +970,11 @@ def health():
 
 
 if __name__ == '__main__':
-    log.info("Starting Spark API v6 (Google Places) on port 5000...")
+    log.info("Starting Spark API v6 (Google Places) on port 5001...")
     if not GOOGLE_API_KEY:
         log.warning("=" * 60)
         log.warning("  GOOGLE_PLACES_API_KEY is NOT set!")
         log.warning("  Add it to backend/.env:")
         log.warning("  GOOGLE_PLACES_API_KEY=AIzaSy...")
         log.warning("=" * 60)
-    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5001)))
