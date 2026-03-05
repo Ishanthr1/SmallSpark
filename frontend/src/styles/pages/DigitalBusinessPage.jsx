@@ -1,9 +1,10 @@
 /**
  * DigitalBusinessPage.jsx — Full detail page for a digital/online business
- * Optimized for SaaS, tools, and online products (not physical locations)
+ * FIX: Accepts `biz` prop directly from DigitalPage (no more API fetch needed)
+ * Also supports standalone route usage via URL param as fallback.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useUser, UserButton } from '@clerk/clerk-react';
 import {
@@ -40,7 +41,6 @@ const dark = {
     phOrange: '#ff6154',
 };
 
-/* ─── Price color ──────────────────────────────────────────── */
 const priceColor = price => ({
     'Free': '#16a34a', 'Freemium': '#2563eb',
     'Subscription': '#7c3aed', 'One-time': '#d97706', 'Paid': '#dc2626',
@@ -101,7 +101,8 @@ const ShareModal = ({ name, th, onClose }) => {
                             { label: 'Facebook', color: '#1877F2', url: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}` },
                             { label: 'Email', color: '#ea4335', url: `mailto:?subject=${encodeURIComponent(`Check out ${name}`)}&body=${encodeURIComponent(shareUrl)}` },
                         ].map(o => (
-                            <a key={o.label} href={o.url} target="_blank" rel="noopener noreferrer" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.35rem', padding: '0.8rem', borderRadius: '10px', border: `1px solid ${th.border}`, textDecoration: 'none', transition: 'all 0.15s' }}
+                            <a key={o.label} href={o.url} target="_blank" rel="noopener noreferrer"
+                                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.35rem', padding: '0.8rem', borderRadius: '10px', border: `1px solid ${th.border}`, textDecoration: 'none', transition: 'all 0.15s' }}
                                 onMouseEnter={e => e.currentTarget.style.backgroundColor = th.hoverBg}
                                 onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
                                 <div style={{ width: '38px', height: '38px', borderRadius: '50%', backgroundColor: o.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.75rem', fontWeight: '800' }}>
@@ -199,7 +200,7 @@ const ReviewCard = ({ review, th }) => (
     </div>
 );
 
-/* ─── Generate fake reviews for the product ───────────────── */
+/* ─── Generate reviews ─────────────────────────────────────── */
 function generateReviews(product) {
     const reviewers = [
         { name: 'Alex M.', role: 'Software Engineer' },
@@ -234,62 +235,69 @@ function generateReviews(product) {
 /* ═══════════════════════════════════════════════════════════════
    MAIN PAGE
    ═══════════════════════════════════════════════════════════════ */
-const DigitalBusinessPage = () => {
-    const { id } = useParams();
+const DigitalBusinessPage = ({ biz: bizProp, isDark: isDarkProp, onBack }) => {
+    // Support both inline usage (biz prop) and standalone route usage
+    const { id } = useParams() || {};
     const navigate = useNavigate();
     const { user } = useUser();
 
-    const [product, setProduct] = useState(null);
-    const [loading, setLoading] = useState(true);
+    // Use prop directly if provided (inline usage from DigitalPage)
+    const [product, setProduct] = useState(bizProp || null);
+    const [loading, setLoading] = useState(!bizProp); // only load if no prop
     const [error, setError] = useState('');
     const [isSaved, setIsSaved] = useState(false);
-    const [isDark, setDark] = useState(true);
+    const [isDark, setDark] = useState(isDarkProp !== undefined ? isDarkProp : true);
     const [showShareModal, setShowShareModal] = useState(false);
     const [showReviewModal, setShowReviewModal] = useState(false);
-    const [reviews, setReviews] = useState([]);
+    const [reviews, setReviews] = useState(() => bizProp ? generateReviews(bizProp) : []);
     const [showAllReviews, setShowAllReviews] = useState(false);
 
     const th = isDark ? dark : light;
 
-    /* ─── Fetch product ──────────────────────────────────── */
+    // Sync isDark when prop changes
     useEffect(() => {
+        if (isDarkProp !== undefined) setDark(isDarkProp);
+    }, [isDarkProp]);
+
+    // If biz prop is provided, use it directly — no fetch needed
+    useEffect(() => {
+        if (bizProp) {
+            setProduct(bizProp);
+            setReviews(generateReviews(bizProp));
+            setLoading(false);
+            return;
+        }
+
+        // Fallback: standalone route usage — fetch by URL param
+        if (!id) { setError('No product specified'); setLoading(false); return; }
+
         const load = async () => {
             setLoading(true);
             setError('');
             try {
-                // Try direct product endpoint first
-                const resp = await fetch(`${API}/digital/product/${encodeURIComponent(id)}`);
+                const name = decodeURIComponent(id).replace('ph_', '');
+                const resp = await fetch(`${API}/digital/search?q=${encodeURIComponent(name)}&per_page=5`);
                 const data = await resp.json();
-                if (data.product) {
-                    setProduct(data.product);
-                    setReviews(generateReviews(data.product));
+                const found = data.businesses?.find(b => b.id === id || b.id === decodeURIComponent(id));
+                const p = found || data.businesses?.[0];
+                if (p) {
+                    setProduct(p);
+                    setReviews(generateReviews(p));
                 } else {
-                    throw new Error(data.error || 'Product not found');
+                    setError('Product not found');
                 }
             } catch (e) {
-                // Fallback: search for it
-                try {
-                    const name = decodeURIComponent(id).replace('ph_', '');
-                    const resp = await fetch(`${API}/digital/search?q=${encodeURIComponent(name)}&per_page=5`);
-                    const data = await resp.json();
-                    const found = data.businesses?.find(b => b.id === id || b.id === decodeURIComponent(id));
-                    if (found) {
-                        setProduct(found);
-                        setReviews(generateReviews(found));
-                    } else if (data.businesses?.length > 0) {
-                        setProduct(data.businesses[0]);
-                        setReviews(generateReviews(data.businesses[0]));
-                    } else {
-                        setError('Product not found');
-                    }
-                } catch (e2) {
-                    setError(e2.message);
-                }
+                setError(e.message);
             }
             setLoading(false);
         };
-        if (id) load();
-    }, [id]);
+        load();
+    }, [bizProp, id]);
+
+    const handleBack = () => {
+        if (onBack) onBack();
+        else navigate('/dashboard');
+    };
 
     const handleReviewSubmit = ({ rating, text }) => {
         const newReview = {
@@ -315,21 +323,20 @@ const DigitalBusinessPage = () => {
     const dist = ratingDist();
     const maxDist = Math.max(...dist, 1);
 
-    /* ─── Loading ────────────────────────────────────────── */
     if (loading) return (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: th.bg, fontFamily: "'Poppins', sans-serif" }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', backgroundColor: th.bg, fontFamily: "'Poppins', sans-serif" }}>
             <Loader2 size={36} color={th.textMuted} style={{ animation: 'spin 1s linear infinite', marginBottom: '1rem' }} />
             <p style={{ color: th.textMuted, fontSize: '0.88rem' }}>Loading product details...</p>
         </div>
     );
 
     if (error || !product) return (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: th.bg, fontFamily: "'Poppins', sans-serif", padding: '2rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', backgroundColor: th.bg, fontFamily: "'Poppins', sans-serif", padding: '2rem' }}>
             <AlertCircle size={44} color={th.redAccent} style={{ marginBottom: '1rem', opacity: 0.6 }} />
             <h2 style={{ color: th.text, fontSize: '1.1rem', marginBottom: '0.5rem' }}>Product not found</h2>
             <p style={{ color: th.textMuted, fontSize: '0.84rem', marginBottom: '1.5rem' }}>{error}</p>
-            <button onClick={() => navigate('/dashboard')} style={{ padding: '0.5rem 1.2rem', borderRadius: '10px', backgroundColor: th.accent, color: th.accentText, border: 'none', cursor: 'pointer', fontWeight: '600', fontFamily: "'Poppins', sans-serif", fontSize: '0.84rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                <ChevronLeft size={15} /> Back to Dashboard
+            <button onClick={handleBack} style={{ padding: '0.5rem 1.2rem', borderRadius: '10px', backgroundColor: th.accent, color: th.accentText, border: 'none', cursor: 'pointer', fontWeight: '600', fontFamily: "'Poppins', sans-serif", fontSize: '0.84rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                <ChevronLeft size={15} /> Back
             </button>
         </div>
     );
@@ -344,7 +351,7 @@ const DigitalBusinessPage = () => {
     ];
 
     return (
-        <div style={{ fontFamily: "'Poppins', -apple-system, sans-serif", backgroundColor: th.bg, color: th.text, minHeight: '100vh' }}>
+        <div style={{ fontFamily: "'Poppins', -apple-system, sans-serif", backgroundColor: th.bg, color: th.text, height: '100%', overflowY: 'auto' }}>
 
             {/* Modals */}
             {showShareModal && <ShareModal name={product.name} th={th} onClose={() => setShowShareModal(false)} />}
@@ -353,14 +360,9 @@ const DigitalBusinessPage = () => {
             {/* ── Top Bar ──────────────────────────────────── */}
             <div style={{ position: 'sticky', top: 0, zIndex: 100, backgroundColor: th.bg, borderBottom: `1px solid ${th.border}`, backdropFilter: 'blur(12px)' }}>
                 <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0.5rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                        <button onClick={() => navigate('/dashboard')} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.35rem 0.7rem', borderRadius: '8px', border: `1px solid ${th.border}`, backgroundColor: 'transparent', cursor: 'pointer', color: th.textSecondary, fontFamily: "'Poppins', sans-serif", fontSize: '0.8rem', fontWeight: '500' }}>
-                            <ChevronLeft size={15} /> Back
-                        </button>
-                        <div style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>
-                            <img src={isDark ? '/logo_dark.png' : '/logo_light.png'} alt="Spark" style={{ height: '22px' }} />
-                        </div>
-                    </div>
+                    <button onClick={handleBack} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.35rem 0.7rem', borderRadius: '8px', border: `1px solid ${th.border}`, backgroundColor: 'transparent', cursor: 'pointer', color: th.textSecondary, fontFamily: "'Poppins', sans-serif", fontSize: '0.8rem', fontWeight: '500' }}>
+                        <ChevronLeft size={15} /> Back
+                    </button>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <button onClick={() => setDark(!isDark)} style={{ background: 'transparent', border: `1px solid ${th.border}`, borderRadius: '50%', width: '34px', height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: th.text }}>
                             {isDark ? <Sun size={15} /> : <Moon size={15} />}
@@ -371,42 +373,33 @@ const DigitalBusinessPage = () => {
             </div>
 
             {/* ── Hero Banner ──────────────────────────────── */}
-            <div style={{ position: 'relative', height: '320px', overflow: 'hidden', backgroundColor: isDark ? '#0d0d1a' : '#f0f4ff' }}>
-                {/* Background gradient pattern */}
+            <div style={{ position: 'relative', height: '280px', overflow: 'hidden', backgroundColor: isDark ? '#0d0d1a' : '#f0f4ff' }}>
                 <div style={{
                     position: 'absolute', inset: 0,
                     background: isDark
                         ? 'radial-gradient(ellipse at 30% 50%, rgba(139,92,246,0.15) 0%, transparent 60%), radial-gradient(ellipse at 70% 50%, rgba(59,130,246,0.1) 0%, transparent 60%)'
                         : 'radial-gradient(ellipse at 30% 50%, rgba(139,92,246,0.1) 0%, transparent 60%), radial-gradient(ellipse at 70% 50%, rgba(59,130,246,0.08) 0%, transparent 60%)',
                 }} />
-                {/* Thumbnail as background */}
                 <img src={product.image || FALLBACK_IMG} alt="" onError={e => { e.target.style.display = 'none' }}
-                    style={{ position: 'absolute', right: 0, top: 0, height: '100%', width: '50%', objectFit: 'cover', opacity: 0.12, maskImage: 'linear-gradient(to left, rgba(0,0,0,0.3), transparent)' }} />
+                    style={{ position: 'absolute', right: 0, top: 0, height: '100%', width: '50%', objectFit: 'cover', opacity: 0.12 }} />
                 <div style={{ position: 'absolute', inset: 0, background: th.heroOverlay }} />
-
                 <div style={{ position: 'absolute', bottom: '2rem', left: '0', right: '0', maxWidth: '1100px', margin: '0 auto', padding: '0 1.5rem', display: 'flex', alignItems: 'flex-end', gap: '1.5rem' }}>
-                    {/* Product icon/thumbnail */}
-                    <div style={{ width: '90px', height: '90px', borderRadius: '18px', overflow: 'hidden', border: `3px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'}`, flexShrink: 0, backgroundColor: th.cardBg, boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
+                    <div style={{ width: '80px', height: '80px', borderRadius: '16px', overflow: 'hidden', border: `3px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'}`, flexShrink: 0, backgroundColor: th.cardBg, boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
                         <img src={product.image || FALLBACK_IMG} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.src = FALLBACK_IMG }} />
                     </div>
                     <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
-                            <h1 style={{ fontSize: '2rem', fontWeight: '800', color: '#fff', margin: 0, textShadow: '0 2px 12px rgba(0,0,0,0.5)', letterSpacing: '-0.02em' }}>{product.name}</h1>
-                            {product.featured && <span style={{ fontSize: '0.65rem', fontWeight: '700', color: '#fff', backgroundColor: th.phOrange, padding: '0.2rem 0.5rem', borderRadius: '4px' }}>PH Featured</span>}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.3rem', flexWrap: 'wrap' }}>
+                            <h1 style={{ fontSize: '1.8rem', fontWeight: '800', color: '#fff', margin: 0, textShadow: '0 2px 12px rgba(0,0,0,0.5)', letterSpacing: '-0.02em' }}>{product.name}</h1>
                         </div>
-                        <p style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.85)', margin: '0 0 0.5rem', maxWidth: '500px', lineHeight: '1.4' }}>{product.tagline}</p>
+                        <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.85)', margin: '0 0 0.5rem', maxWidth: '500px', lineHeight: '1.4' }}>{product.tagline}</p>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                                {[1,2,3,4,5].map(s => <Star key={s} size={16} fill={s <= Math.round(product.rating) ? '#f59e0b' : 'none'} color="#f59e0b" />)}
-                                <span style={{ color: '#fff', fontWeight: '700', fontSize: '0.9rem', marginLeft: '0.2rem' }}>{product.rating}</span>
-                                {product.reviews > 0 && <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.8rem' }}>({product.reviews.toLocaleString()} reviews)</span>}
+                                {[1,2,3,4,5].map(s => <Star key={s} size={14} fill={s <= Math.round(product.rating) ? '#f59e0b' : 'none'} color="#f59e0b" />)}
+                                <span style={{ color: '#fff', fontWeight: '700', fontSize: '0.88rem', marginLeft: '0.2rem' }}>{product.rating}</span>
+                                {product.reviews > 0 && <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.78rem' }}>({product.reviews.toLocaleString()})</span>}
                             </div>
-                            {product.votes > 0 && (
-                                <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                                    <ThumbsUp size={13} /> {product.votes.toLocaleString()} upvotes
-                                </span>
-                            )}
-                            <span style={{ fontSize: '0.72rem', fontWeight: '700', color: priceColor(product.price), backgroundColor: priceColor(product.price) + '33', padding: '0.15rem 0.5rem', borderRadius: '50px' }}>{product.price}</span>
+                            {product.votes > 0 && <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '0.2rem' }}><ThumbsUp size={12} /> {product.votes.toLocaleString()} upvotes</span>}
+                            <span style={{ fontSize: '0.7rem', fontWeight: '700', color: priceColor(product.price), backgroundColor: priceColor(product.price) + '33', padding: '0.15rem 0.5rem', borderRadius: '50px' }}>{product.price}</span>
                         </div>
                     </div>
                 </div>
@@ -415,40 +408,32 @@ const DigitalBusinessPage = () => {
             {/* ── Action Buttons ────────────────────────────── */}
             <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '1rem 1.5rem', display: 'flex', gap: '0.5rem', borderBottom: `1px solid ${th.border}`, flexWrap: 'wrap' }}>
                 {product.website && (
-                    <a href={product.website} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.5rem 1rem', borderRadius: '8px', border: 'none', backgroundColor: th.phOrange, color: '#fff', textDecoration: 'none', fontWeight: '700', fontSize: '0.82rem', fontFamily: "'Poppins', sans-serif", transition: 'opacity 0.15s' }}
-                        onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
-                        onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
-                        <Globe size={15} /> Visit Website <ExternalLink size={13} />
+                    <a href={product.website} target="_blank" rel="noopener noreferrer"
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.5rem 1rem', borderRadius: '8px', border: 'none', backgroundColor: th.phOrange, color: '#fff', textDecoration: 'none', fontWeight: '700', fontSize: '0.82rem', fontFamily: "'Poppins', sans-serif" }}>
+                        <Globe size={14} /> Visit Website <ExternalLink size={12} />
                     </a>
                 )}
-                {product.phUrl && (
-                    <a href={product.phUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.5rem 0.9rem', borderRadius: '8px', border: `1.5px solid ${th.border}`, backgroundColor: 'transparent', color: th.phOrange, textDecoration: 'none', fontWeight: '600', fontSize: '0.8rem', fontFamily: "'Poppins', sans-serif', transition: 'all 0.15s'" }}
-                        onMouseEnter={e => { e.currentTarget.style.backgroundColor = th.hoverBg }}
-                        onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}>
-                        <ThumbsUp size={14} /> Product Hunt <ArrowUpRight size={13} />
-                    </a>
-                )}
-                <button onClick={() => setShowReviewModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.5rem 0.9rem', borderRadius: '8px', border: `1.5px solid ${th.border}`, backgroundColor: 'transparent', color: th.textSecondary, cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', fontFamily: "'Poppins', sans-serif", transition: 'all 0.15s' }}
+
+                <button onClick={() => setShowReviewModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.5rem 0.9rem', borderRadius: '8px', border: `1.5px solid ${th.border}`, backgroundColor: 'transparent', color: th.textSecondary, cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', fontFamily: "'Poppins', sans-serif" }}
                     onMouseEnter={e => { e.currentTarget.style.backgroundColor = th.hoverBg; e.currentTarget.style.color = th.text }}
                     onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = th.textSecondary }}>
-                    <Star size={14} /> Write a Review
+                    <Star size={13} /> Write a Review
                 </button>
-                <button onClick={() => setShowShareModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.5rem 0.9rem', borderRadius: '8px', border: `1.5px solid ${th.border}`, backgroundColor: 'transparent', color: th.textSecondary, cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', fontFamily: "'Poppins', sans-serif", transition: 'all 0.15s' }}
+                <button onClick={() => setShowShareModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.5rem 0.9rem', borderRadius: '8px', border: `1.5px solid ${th.border}`, backgroundColor: 'transparent', color: th.textSecondary, cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', fontFamily: "'Poppins', sans-serif" }}
                     onMouseEnter={e => { e.currentTarget.style.backgroundColor = th.hoverBg; e.currentTarget.style.color = th.text }}
                     onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = th.textSecondary }}>
-                    <Share2 size={14} /> Share
+                    <Share2 size={13} /> Share
                 </button>
-                <button onClick={() => setIsSaved(!isSaved)} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.5rem 0.9rem', borderRadius: '8px', border: `1.5px solid ${th.border}`, backgroundColor: isSaved ? th.activeBg : 'transparent', color: isSaved ? th.text : th.textSecondary, cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', fontFamily: "'Poppins', sans-serif", transition: 'all 0.15s' }}>
-                    <Bookmark size={14} fill={isSaved ? th.text : 'none'} /> {isSaved ? 'Saved' : 'Save'}
+                <button onClick={() => setIsSaved(!isSaved)} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.5rem 0.9rem', borderRadius: '8px', border: `1.5px solid ${th.border}`, backgroundColor: isSaved ? th.activeBg : 'transparent', color: isSaved ? th.text : th.textSecondary, cursor: 'pointer', fontWeight: '600', fontSize: '0.8rem', fontFamily: "'Poppins', sans-serif" }}>
+                    <Bookmark size={13} fill={isSaved ? th.text : 'none'} /> {isSaved ? 'Saved' : 'Save'}
                 </button>
             </div>
 
             {/* ── Main Content ──────────────────────────────── */}
-            <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '1.5rem', display: 'grid', gridTemplateColumns: '1fr 320px', gap: '2rem' }}>
+            <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '1.5rem', display: 'grid', gridTemplateColumns: '1fr 300px', gap: '2rem' }}>
 
-                {/* ── LEFT COLUMN ──────────────────────────── */}
+                {/* LEFT COLUMN */}
                 <div>
-                    {/* Tags */}
                     {product.tags?.length > 0 && (
                         <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
                             {product.tags.map((t, i) => (
@@ -457,7 +442,6 @@ const DigitalBusinessPage = () => {
                         </div>
                     )}
 
-                    {/* About */}
                     {product.description && (
                         <div style={{ marginBottom: '2rem' }}>
                             <h2 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '0.6rem', color: th.text }}>About {product.name}</h2>
@@ -465,19 +449,17 @@ const DigitalBusinessPage = () => {
                         </div>
                     )}
 
-                    {/* What makes it special */}
                     <div style={{ marginBottom: '2rem' }}>
                         <h2 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '0.8rem', color: th.text }}>What You Get</h2>
                         <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
                             {productFeatures.map((f, i) => (
                                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.4rem 0.75rem', borderRadius: '8px', border: `1px solid ${th.border}`, backgroundColor: th.cardBg, fontSize: '0.76rem', color: th.textSecondary, fontWeight: '500' }}>
-                                    <f.icon size={14} /> {f.label}
+                                    <f.icon size={13} /> {f.label}
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    {/* Highlights */}
                     <div style={{ marginBottom: '2rem' }}>
                         <h2 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '0.8rem', color: th.text }}>Product Highlights</h2>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.6rem' }}>
@@ -490,7 +472,7 @@ const DigitalBusinessPage = () => {
                                 { icon: CheckCircle, label: 'Regular updates' },
                             ].map((h, i) => (
                                 <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0.9rem 0.4rem', borderRadius: '10px', backgroundColor: th.badgeBg, gap: '0.35rem' }}>
-                                    <h.icon size={22} color={th.textSecondary} />
+                                    <h.icon size={20} color={th.textSecondary} />
                                     <span style={{ fontSize: '0.7rem', color: th.textSecondary, fontWeight: '500', textAlign: 'center' }}>{h.label}</span>
                                 </div>
                             ))}
@@ -500,7 +482,6 @@ const DigitalBusinessPage = () => {
                     {/* Reviews */}
                     <div style={{ marginBottom: '2rem' }}>
                         <h2 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '0.8rem', color: th.text }}>User Reviews</h2>
-                        {/* Rating summary */}
                         <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start', padding: '1rem', borderRadius: '12px', backgroundColor: th.cardBg, border: `1px solid ${th.border}`, marginBottom: '1rem' }}>
                             <div style={{ textAlign: 'center' }}>
                                 <div style={{ fontSize: '2rem', fontWeight: '800', color: th.text, lineHeight: 1 }}>{product.rating}</div>
@@ -519,7 +500,6 @@ const DigitalBusinessPage = () => {
                                 ))}
                             </div>
                         </div>
-
                         {(showAllReviews ? reviews : reviews.slice(0, 3)).map(r => (
                             <ReviewCard key={r.id} review={r} th={th} />
                         ))}
@@ -531,75 +511,56 @@ const DigitalBusinessPage = () => {
                     </div>
                 </div>
 
-                {/* ── RIGHT COLUMN ─────────────────────────── */}
+                {/* RIGHT COLUMN */}
                 <div>
-                    {/* CTA Card */}
-                    <div style={{ padding: '1.2rem', borderRadius: '12px', border: `1px solid ${th.border}`, backgroundColor: th.cardBg, marginBottom: '1rem' }}>
+                    <div style={{ padding: '1.2rem', borderRadius: '12px', border: `1px solid ${th.border}`, backgroundColor: th.cardBg, marginBottom: '1rem', position: 'sticky', top: '60px' }}>
                         <div style={{ marginBottom: '0.8rem' }}>
                             <span style={{ fontSize: '0.7rem', fontWeight: '700', color: priceColor(product.price), backgroundColor: priceColor(product.price) + '18', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>{product.price}</span>
                         </div>
-
                         {product.website && (
-                            <a href={product.website} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', width: '100%', padding: '0.7rem', borderRadius: '10px', backgroundColor: th.phOrange, color: '#fff', textDecoration: 'none', fontWeight: '700', fontSize: '0.88rem', marginBottom: '0.6rem', fontFamily: "'Poppins', sans-serif", transition: 'opacity 0.15s' }}
-                                onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
-                                onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
-                                <Globe size={16} /> Get Started
-                            </a>
-                        )}
-
-                        {product.phUrl && (
-                            <a href={product.phUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', width: '100%', padding: '0.6rem', borderRadius: '10px', border: `1.5px solid ${th.border}`, backgroundColor: 'transparent', color: th.phOrange, textDecoration: 'none', fontWeight: '600', fontSize: '0.82rem', fontFamily: "'Poppins', sans-serif", marginBottom: '0.6rem' }}
-                                onMouseEnter={e => e.currentTarget.style.backgroundColor = th.hoverBg}
-                                onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
-                                <ThumbsUp size={14} /> Upvote on Product Hunt
+                            <a href={product.website} target="_blank" rel="noopener noreferrer"
+                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', width: '100%', padding: '0.7rem', borderRadius: '10px', backgroundColor: th.phOrange, color: '#fff', textDecoration: 'none', fontWeight: '700', fontSize: '0.88rem', marginBottom: '0.6rem', fontFamily: "'Poppins', sans-serif" }}>
+                                <Globe size={15} /> Get Started
                             </a>
                         )}
 
                         <div style={{ borderTop: `1px solid ${th.border}`, paddingTop: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                            {product.website && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', color: th.textSecondary }}>
-                                    <Globe size={14} color={th.textMuted} />
-                                    <span style={{ color: '#3b82f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{product.website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]}</span>
-                                </div>
-                            )}
+
                             {product.subcategory && (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', color: th.textSecondary }}>
-                                    <Tag size={14} color={th.textMuted} /> {product.subcategory}
+                                    <Tag size={13} color={th.textMuted} /> {product.subcategory}
                                 </div>
                             )}
                             {product.createdAt && (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', color: th.textSecondary }}>
-                                    <Calendar size={14} color={th.textMuted} /> Launched {new Date(product.createdAt).getFullYear()}
+                                    <Calendar size={13} color={th.textMuted} /> Launched {new Date(product.createdAt).getFullYear()}
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {/* Upvotes / social proof */}
                     <div style={{ padding: '1rem', borderRadius: '12px', border: `1px solid ${th.border}`, backgroundColor: th.cardBg, marginBottom: '1rem' }}>
                         <h3 style={{ fontSize: '0.88rem', fontWeight: '700', color: th.text, margin: '0 0 0.8rem' }}>Social Proof</h3>
                         {[
-                            { icon: ThumbsUp, label: 'Product Hunt Upvotes', value: (product.votes || 0).toLocaleString(), color: th.phOrange },
                             { icon: Star, label: 'Average Rating', value: product.rating?.toString() || 'N/A', color: '#f59e0b' },
                             { icon: MessageSquare, label: 'User Reviews', value: (product.reviews || 0).toLocaleString(), color: '#3b82f6' },
                         ].map((s, i) => (
                             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.5rem 0', borderBottom: i < 2 ? `1px solid ${th.border}` : 'none' }}>
-                                <s.icon size={16} color={s.color} />
+                                <s.icon size={15} color={s.color} />
                                 <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: '0.72rem', color: th.textMuted }}>{s.label}</div>
-                                    <div style={{ fontSize: '0.92rem', fontWeight: '700', color: th.text }}>{s.value}</div>
+                                    <div style={{ fontSize: '0.7rem', color: th.textMuted }}>{s.label}</div>
+                                    <div style={{ fontSize: '0.9rem', fontWeight: '700', color: th.text }}>{s.value}</div>
                                 </div>
                             </div>
                         ))}
                     </div>
 
-                    {/* Tags cloud */}
                     {product.tags?.length > 0 && (
                         <div style={{ padding: '1rem', borderRadius: '12px', border: `1px solid ${th.border}`, backgroundColor: th.cardBg }}>
                             <h3 style={{ fontSize: '0.88rem', fontWeight: '700', color: th.text, margin: '0 0 0.6rem' }}>Related Topics</h3>
                             <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
                                 {product.tags.map((t, i) => (
-                                    <button key={i} onClick={() => navigate('/dashboard')} style={{ padding: '0.25rem 0.55rem', borderRadius: '50px', border: `1px solid ${th.border}`, backgroundColor: 'transparent', cursor: 'pointer', fontSize: '0.7rem', color: th.textSecondary, fontFamily: "'Poppins', sans-serif", fontWeight: '500', transition: '0.12s' }}
+                                    <button key={i} onClick={onBack || (() => navigate('/dashboard'))} style={{ padding: '0.25rem 0.55rem', borderRadius: '50px', border: `1px solid ${th.border}`, backgroundColor: 'transparent', cursor: 'pointer', fontSize: '0.7rem', color: th.textSecondary, fontFamily: "'Poppins', sans-serif", fontWeight: '500' }}
                                         onMouseEnter={e => { e.currentTarget.style.backgroundColor = th.hoverBg; e.currentTarget.style.color = th.text }}
                                         onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = th.textSecondary }}>
                                         {t}
@@ -611,9 +572,8 @@ const DigitalBusinessPage = () => {
                 </div>
             </div>
 
-            {/* ── Footer ───────────────────────────────────── */}
             <div style={{ borderTop: `1px solid ${th.border}`, padding: '1.5rem', textAlign: 'center', marginTop: '2rem' }}>
-                <p style={{ fontSize: '0.7rem', color: th.textMuted, margin: 0 }}>© 2026 Spark. Product data powered by Product Hunt.</p>
+                <p style={{ fontSize: '0.7rem', color: th.textMuted, margin: 0 }}>© 2026 Spark.</p>
             </div>
         </div>
     );
