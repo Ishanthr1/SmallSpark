@@ -21,8 +21,9 @@ import DealsContent from './DealsPage';
 import FriendsPage from './FriendsPage';
 import DigitalPage from './DigitalPage';
 import { getPreferences, setPreferences } from '../../lib/preferences';
+import { listFriends } from '../../lib/friends';
 
-const API = 'http://localhost:5000/api';
+const API = 'http://localhost:5001/api';
 
 /* ─── Fetch helper ─────────────────────────────────────────── */
 async function apiFetch(url) {
@@ -673,95 +674,708 @@ const Pager = ({page, total, onPage, th}) => {
 
 
 /* ═══════════════════════════════════════════════════════════════
-   AI SEARCH PLACEHOLDER VIEW
+   AI SEARCH — ORBIT WHEEL + TASTE MATCHING
    ═══════════════════════════════════════════════════════════════ */
-const AISearchView = ({th, onBack}) => (
-    <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '3rem',
-        textAlign: 'center',
-        position: 'relative'
-    }}>
-        <button onClick={onBack} style={{
-            position: 'absolute', top: '1rem', left: '1rem',
-            display: 'flex', alignItems: 'center', gap: '0.3rem',
-            padding: '0.4rem 0.8rem', borderRadius: '8px',
-            border: `1px solid ${th.border}`, backgroundColor: 'transparent',
-            cursor: 'pointer', fontFamily: "'Poppins',sans-serif",
-            fontSize: '0.8rem', fontWeight: '500', color: th.textSecondary,
-        }}><ChevronLeft size={16}/> Back to Discover
-        </button>
+const AI_LOADING_PHRASES = [
+    'Discovering small business gems nearby...',
+    'Blending your group\'s taste profiles...',
+    'Matching local small businesses to your crew...',
+    'Computing group compatibility with small businesses...',
+    'Scanning independent neighborhood favorites...',
+    'Finding small businesses the whole crew will love...',
+    'Evaluating mom-and-pop shops for the group...',
+    'Ranking the best small business matches...',
+];
+
+const AI_SUGGESTIONS = [
+    'Best small-town pizza spot',
+    'Hidden gem indie coffee shop',
+    'Cozy family-owned bakery nearby',
+    'Local small business for date night',
+];
+
+const PRICE_MAP = {'$': 1, '$$': 2, '$$$': 3, '$$$$': 4};
+
+function mergeGroupPreferences(allPrefs) {
+    const memberCount = allPrefs.length;
+    if (memberCount === 0) return {cuisineFreq: {}, categoryFreq: {}, avgPrice: null, memberCount: 0};
+
+    const cuisineFreq = {};
+    const categoryFreq = {};
+    let priceSum = 0;
+    let priceCount = 0;
+
+    for (const p of allPrefs) {
+        if (p?.cuisines) {
+            for (const c of p.cuisines) {
+                cuisineFreq[c] = (cuisineFreq[c] || 0) + 1;
+            }
+        }
+        if (p?.categories) {
+            for (const c of p.categories) {
+                categoryFreq[c] = (categoryFreq[c] || 0) + 1;
+            }
+        }
+        if (p?.price_level) {
+            priceSum += p.price_level;
+            priceCount++;
+        }
+    }
+
+    return {
+        cuisineFreq,
+        categoryFreq,
+        avgPrice: priceCount > 0 ? Math.round(priceSum / priceCount) : null,
+        memberCount,
+        distanceRadius: allPrefs[0]?.distance_radius_meters || 5000,
+    };
+}
+
+function computeGroupTasteMatch(biz, merged) {
+    let score = 50;
+    const reasons = [];
+    const mc = merged.memberCount || 1;
+
+    const matchedCuisine = Object.keys(merged.cuisineFreq).find(c =>
+        biz.tagLabels?.some(t => t.toLowerCase().includes(c.toLowerCase())) ||
+        biz.subcategory?.toLowerCase().includes(c.toLowerCase()) ||
+        biz.name?.toLowerCase().includes(c.toLowerCase())
+    );
+    if (matchedCuisine) {
+        const freq = merged.cuisineFreq[matchedCuisine];
+        const bonus = Math.round(25 * (freq / mc));
+        score += bonus;
+        if (mc > 1) {
+            reasons.push(freq === mc
+                ? `serves ${matchedCuisine} — a cuisine everyone loves`
+                : `serves ${matchedCuisine}, loved by ${freq} of ${mc} in your group`);
+        } else {
+            reasons.push(`serves your favorite ${matchedCuisine} cuisine`);
+        }
+    }
+
+    const matchedCat = Object.keys(merged.categoryFreq).find(c => biz.category === c);
+    if (matchedCat) {
+        const freq = merged.categoryFreq[matchedCat];
+        const bonus = Math.round(15 * (freq / mc));
+        score += bonus;
+        if (mc > 1 && freq > 1) {
+            reasons.push(`${freq} of your group prefer ${matchedCat.toLowerCase()}`);
+        } else {
+            reasons.push(`fits the ${matchedCat.toLowerCase()} category`);
+        }
+    }
+
+    if (merged.avgPrice) {
+        const bizPrice = PRICE_MAP[biz.priceLevel];
+        if (bizPrice === merged.avgPrice) {
+            score += 10;
+            reasons.push(mc > 1 ? 'matches the group\'s price sweet spot' : 'right in your price range');
+        } else if (bizPrice) {
+            score -= 5;
+        }
+    }
+
+    if (biz.rating >= 4.5) {
+        score += 8;
+        reasons.push('highly rated by the community');
+    } else if (biz.rating >= 4.0) {
+        score += 5;
+        reasons.push('well-reviewed locally');
+    }
+
+    score = Math.min(98, Math.max(20, score));
+
+    const reasoning = reasons.length > 0
+        ? `This small business ${reasons[0]}${reasons.length > 1 ? ` and is ${reasons[1]}` : ''}.`
+        : `A nearby small ${biz.subcategory?.toLowerCase() || 'local'} business worth discovering.`;
+
+    return {score, reasoning};
+}
+
+function getMatchColor(score) {
+    if (score >= 80) return '#16a34a';
+    if (score >= 60) return '#8b5cf6';
+    if (score >= 40) return '#eab308';
+    return '#94a3b8';
+}
+
+const ORBIT_RADIUS = 220;
+const ORBIT_IMG_SIZE = 90;
+const DEFAULT_COORDS = {lat: 40.758, lng: -111.876};
+
+const FRIEND_ORBIT_RADIUS = 120;
+const FRIEND_AVT_SIZE = 56;
+
+const AISearchView = ({th, onBack}) => {
+    const {user} = useUser();
+    const navigate = useNavigate();
+    const [query, setQuery] = useState('');
+    const [rotation, setRotation] = useState(0);
+    const cyclesRef = useRef(0);
+    const [isThinking, setIsThinking] = useState(false);
+    const [showingResults, setShowingResults] = useState(false);
+    const [orbitImages, setOrbitImages] = useState([]);
+    const [searchResults, setSearchResults] = useState([]);
+    const [glowingIndices, setGlowingIndices] = useState(new Set());
+    const [currentPhrase, setCurrentPhrase] = useState(AI_LOADING_PHRASES[0]);
+    const [searchError, setSearchError] = useState(null);
+    const [userPrefs, setUserPrefs] = useState(null);
+    const [userCoords, setUserCoords] = useState(null);
+    const [hoveredCard, setHoveredCard] = useState(null);
+    const [friendsList, setFriendsList] = useState([]);
+    const [mergedPrefs, setMergedPrefs] = useState(null);
+    const [groupSize, setGroupSize] = useState(1);
+    const [friendPrefs, setFriendPrefs] = useState({});
+    const [hoveredFriendId, setHoveredFriendId] = useState(null);
+
+    const hoveredFriendPrefs = hoveredFriendId ? friendPrefs[hoveredFriendId] : null;
+    const hoveredFriendProfile = hoveredFriendId
+        ? friendsList.find(f => f.clerk_user_id === hoveredFriendId)
+        : null;
+    const commonCuisines = hoveredFriendPrefs?.cuisines && userPrefs?.cuisines
+        ? hoveredFriendPrefs.cuisines.filter(c => userPrefs.cuisines.includes(c))
+        : [];
+    const commonCategories = hoveredFriendPrefs?.categories && userPrefs?.categories
+        ? hoveredFriendPrefs.categories.filter(c => userPrefs.categories.includes(c))
+        : [];
+
+    useEffect(() => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                pos => setUserCoords({lat: pos.coords.latitude, lng: pos.coords.longitude}),
+                () => setUserCoords(DEFAULT_COORDS)
+            );
+        } else {
+            setUserCoords(DEFAULT_COORDS);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!user?.id) return;
+        let cancelled = false;
+
+        async function loadGroupPrefs() {
+            const allPrefs = [];
+            const fpMap = {};
+            try {
+                const myP = await getPreferences(user.id);
+                if (myP?.preferences) {
+                    setUserPrefs(myP.preferences);
+                    allPrefs.push(myP.preferences);
+                }
+            } catch (_) {}
+
+            try {
+                const friends = await listFriends(user.id);
+                if (cancelled) return;
+                setFriendsList(friends || []);
+                const friendPrefPromises = (friends || []).map(f =>
+                    getPreferences(f.clerk_user_id).catch(() => null)
+                );
+                const friendPrefResults = await Promise.all(friendPrefPromises);
+                if (cancelled) return;
+                friendPrefResults.forEach((fp, idx) => {
+                    const friend = friends[idx];
+                    if (fp?.preferences && friend?.clerk_user_id) {
+                        allPrefs.push(fp.preferences);
+                        fpMap[friend.clerk_user_id] = fp.preferences;
+                    }
+                });
+            } catch (_) {}
+
+            if (!cancelled) {
+                setGroupSize(allPrefs.length);
+                setMergedPrefs(mergeGroupPreferences(allPrefs));
+                setFriendPrefs(fpMap);
+            }
+        }
+
+        loadGroupPrefs();
+        return () => { cancelled = true; };
+    }, [user?.id]);
+
+    useEffect(() => {
+        if (!userCoords) return;
+        apiFetch(`${API}/search?lat=${userCoords.lat}&lng=${userCoords.lng}&radius=5000`)
+            .then(data => {
+                if (data?.businesses?.length) setOrbitImages(data.businesses.slice(0, 12));
+            }).catch(() => {});
+    }, [userCoords]);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            let speed;
+            if (isThinking) {
+                speed = 1.2;
+            } else if (showingResults) {
+                speed = 0.6;
+            } else if (cyclesRef.current < 0.7) {
+                speed = 5.0;
+            } else {
+                const p = Math.min((cyclesRef.current - 0.7) / 0.3, 1);
+                speed = 5.0 - 4.2 * p;
+            }
+            setRotation(prev => {
+                if (!isThinking && !showingResults) cyclesRef.current += speed / 360;
+                return (prev + speed) % 360;
+            });
+        }, 50);
+        return () => clearInterval(interval);
+    }, [isThinking, showingResults]);
+
+    useEffect(() => {
+        if (!isThinking) { setGlowingIndices(new Set()); return; }
+        const interval = setInterval(() => {
+            const count = orbitImages.length;
+            if (!count) return;
+            const n = Math.floor(Math.random() * 3) + 2;
+            const s = new Set();
+            while (s.size < Math.min(n, count)) s.add(Math.floor(Math.random() * count));
+            setGlowingIndices(s);
+        }, 1500);
+        return () => clearInterval(interval);
+    }, [isThinking, orbitImages.length]);
+
+    useEffect(() => {
+        if (!isThinking) return;
+        let idx = 0;
+        const interval = setInterval(() => {
+            idx = (idx + 1) % AI_LOADING_PHRASES.length;
+            setCurrentPhrase(AI_LOADING_PHRASES[idx]);
+        }, 2500);
+        return () => clearInterval(interval);
+    }, [isThinking]);
+
+    const handleSearch = useCallback(async (q) => {
+        const searchQ = (q || query).trim();
+        if (!searchQ || !userCoords) return;
+
+        setIsThinking(true);
+        setShowingResults(false);
+        setSearchError(null);
+        setSearchResults([]);
+        cyclesRef.current = 0;
+        setCurrentPhrase(AI_LOADING_PHRASES[0]);
+
+        const radius = mergedPrefs?.distanceRadius || userPrefs?.distance_radius_meters || 5000;
+
+        try {
+            const data = await apiFetch(
+                `${API}/search?q=${encodeURIComponent(searchQ)}&lat=${userCoords.lat}&lng=${userCoords.lng}&radius=${radius}`
+            );
+
+            if (data?.businesses?.length) {
+                setOrbitImages(data.businesses.slice(0, 12));
+                await new Promise(r => setTimeout(r, 1800));
+
+                const prefsToUse = mergedPrefs || mergeGroupPreferences(userPrefs ? [userPrefs] : []);
+                const scored = data.businesses.map(biz => {
+                    const {score, reasoning} = computeGroupTasteMatch(biz, prefsToUse);
+                    return {...biz, matchScore: score, matchReasoning: reasoning};
+                });
+                scored.sort((a, b) => b.matchScore - a.matchScore);
+                setSearchResults(scored);
+            } else {
+                setSearchError('No small businesses found nearby. Try a different search.');
+            }
+        } catch (e) {
+            setSearchError(e.message || 'Search failed. Make sure the backend is running.');
+        } finally {
+            setIsThinking(false);
+            setShowingResults(true);
+        }
+    }, [query, userCoords, userPrefs, mergedPrefs]);
+
+    const total = orbitImages.length;
+    const wheelDiameter = ORBIT_RADIUS * 2 + ORBIT_IMG_SIZE + 20;
+
+    return (
         <div style={{
-            width: '120px', height: '120px', borderRadius: '50%',
-            background: 'linear-gradient(135deg, #8b5cf6, #6366f1, #3b82f6)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            marginBottom: '1.5rem',
-            boxShadow: '0 0 60px rgba(99,102,241,0.3), 0 0 120px rgba(139,92,246,0.15)',
-            animation: 'pulseOrb 3s ease-in-out infinite',
-        }}><Sparkles size={44} color="#fff"/></div>
-        <h2 style={{fontSize: '1.3rem', fontWeight: '700', color: th.text, marginBottom: '0.4rem'}}>AI-Powered
-            Search</h2>
-        <p style={{
-            fontSize: '0.88rem',
-            color: th.textMuted,
-            lineHeight: '1.6',
-            maxWidth: '400px',
-            marginBottom: '2rem'
+            display: 'flex', flexDirection: 'column', height: '100%',
+            position: 'relative', overflow: 'hidden',
         }}>
-            Tell me what you're looking for in natural language. I'll find the best local businesses that match your
-            vibe.
-        </p>
-        <div style={{
-            display: 'flex', alignItems: 'center', gap: '0.5rem',
-            width: '100%', maxWidth: '500px',
-            padding: '0.6rem 0.7rem 0.6rem 1rem',
-            borderRadius: '14px',
-            border: `2px solid rgba(99,102,241,0.3)`,
-            backgroundColor: th.inputBg,
-            boxShadow: '0 4px 20px rgba(99,102,241,0.1)',
-        }}>
-            <Bot size={18} color="#8b5cf6"/>
-            <input placeholder="e.g. A cozy dinner spot with outdoor seating near me..."
-                   style={{
-                       flex: 1, border: 'none', background: 'transparent', fontSize: '0.88rem',
-                       fontFamily: "'Poppins',sans-serif", color: th.text, outline: 'none'
-                   }}/>
-            <button style={{
-                padding: '0.5rem 1rem', borderRadius: '10px', border: 'none',
-                background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
-                color: '#fff', fontWeight: '600', fontSize: '0.84rem',
-                cursor: 'pointer', fontFamily: "'Poppins',sans-serif",
+            <button onClick={onBack} style={{
+                position: 'absolute', top: '0.7rem', left: '1rem', zIndex: 10,
                 display: 'flex', alignItems: 'center', gap: '0.3rem',
-            }}><Search size={14}/> Search
-            </button>
+                padding: '0.4rem 0.8rem', borderRadius: '8px', width: 'fit-content',
+                border: `1px solid ${th.border}`, backgroundColor: th.bg,
+                cursor: 'pointer', fontFamily: "'Poppins',sans-serif",
+                fontSize: '0.8rem', fontWeight: '500', color: th.textSecondary,
+            }}><ChevronLeft size={16}/> Back to Discover</button>
+
+            {/* ── Orbit Wheel — fills center ────────────────────── */}
+            <div style={{
+                flex: 1, display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center',
+                overflowY: showingResults ? 'auto' : 'hidden',
+                padding: '0.5rem 1rem',
+            }}>
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '1.5rem',
+                    width: '100%',
+                    maxWidth: '1100px',
+                }}>
+                    <div style={{
+                        position: 'relative', width: `${wheelDiameter}px`, height: `${wheelDiameter}px`,
+                        minHeight: `${wheelDiameter}px`, flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                        <div style={{
+                            position: 'absolute', width: `${ORBIT_RADIUS * 2}px`, height: `${ORBIT_RADIUS * 2}px`,
+                            borderRadius: '50%', border: `1px dashed ${th.border}`, opacity: 0.25,
+                        }}/>
+
+                        {friendsList.length > 0 && (
+                            <div style={{
+                                position: 'absolute', width: `${FRIEND_ORBIT_RADIUS * 2}px`, height: `${FRIEND_ORBIT_RADIUS * 2}px`,
+                                borderRadius: '50%', border: `1px dashed ${th.border}`, opacity: 0.12,
+                            }}/>
+                        )}
+
+                    {friendsList.slice(0, 6).map((friend, i) => {
+                            const fTotal = Math.min(friendsList.length, 6);
+                            const angle = (i / fTotal) * 360 + rotation * 0.4;
+                            const rad = (angle * Math.PI) / 180;
+                            const x = Math.cos(rad) * FRIEND_ORBIT_RADIUS;
+                            const y = Math.sin(rad) * FRIEND_ORBIT_RADIUS;
+                            const initials = (friend.full_name || '?').split(' ').map(w => w[0]).join('').slice(0, 2);
+                            return (
+                                <div
+                                    key={friend.clerk_user_id}
+                                    title={friend.full_name || 'Friend'}
+                                onClick={() => setHoveredFriendId(prev => prev === friend.clerk_user_id ? null : friend.clerk_user_id)}
+                                    style={{
+                                        position: 'absolute',
+                                        width: `${FRIEND_AVT_SIZE}px`, height: `${FRIEND_AVT_SIZE}px`,
+                                        borderRadius: '50%', overflow: 'hidden',
+                                        transform: `translate(${x}px, ${y}px)`,
+                                        border: `2px solid rgba(139,92,246,0.4)`,
+                                        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                                        zIndex: 3, backgroundColor: th.badgeBg,
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    }}>
+                                    {friend.avatar_url
+                                        ? <img src={friend.avatar_url} alt={friend.full_name}
+                                               style={{width: '100%', height: '100%', objectFit: 'cover'}}/>
+                                        : <span style={{fontSize: '0.7rem', fontWeight: '700', color: th.textSecondary,
+                                            fontFamily: "'Poppins',sans-serif"}}>{initials}</span>}
+                                </div>
+                            );
+                        })}
+
+                        {total > 0 && orbitImages.map((biz, i) => {
+                            const angle = (i / total) * 360 + rotation;
+                            const rad = (angle * Math.PI) / 180;
+                            const x = Math.cos(rad) * ORBIT_RADIUS;
+                            const y = Math.sin(rad) * ORBIT_RADIUS;
+                            const glow = glowingIndices.has(i);
+                            return (
+                                <div key={biz.id || i} style={{
+                                    position: 'absolute',
+                                    width: `${ORBIT_IMG_SIZE}px`, height: `${ORBIT_IMG_SIZE}px`,
+                                    borderRadius: '50%', overflow: 'hidden',
+                                    transform: `translate(${x}px, ${y}px)`,
+                                    transition: 'box-shadow 0.4s ease',
+                                    boxShadow: glow
+                                        ? '0 0 26px rgba(139,92,246,0.9), 0 0 52px rgba(99,102,241,0.5)'
+                                        : '0 4px 16px rgba(0,0,0,0.35)',
+                                    border: glow ? '3px solid rgba(139,92,246,0.9)' : `2.5px solid ${th.border}`,
+                                    zIndex: 1,
+                                }}>
+                                    <img src={biz.image} alt={biz.name}
+                                         style={{width: '100%', height: '100%', objectFit: 'cover'}} loading="lazy"/>
+                                </div>
+                            );
+                        })}
+                        {hoveredFriendId && (
+                            <div style={{
+                                position: 'absolute',
+                                top: '50%',
+                                left: '100%',
+                                marginLeft: '16px',
+                                transform: 'translateY(-50%)',
+                                padding: '0.6rem 0.8rem',
+                                borderRadius: '12px',
+                                backgroundColor: th.cardBg,
+                                border: `1px solid ${th.border}`,
+                                width: '260px',
+                                fontFamily: "'Poppins',sans-serif",
+                                fontSize: '0.72rem',
+                                boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
+                                zIndex: 4,
+                            }}>
+                                <div style={{marginBottom: '0.25rem'}}>
+                                    <span style={{fontWeight: 600, color: th.text}}>
+                                        {hoveredFriendProfile?.full_name || 'Friend'}'s taste profile
+                                    </span>
+                                </div>
+                                <div style={{display: 'flex', flexDirection: 'column', gap: '0.35rem'}}>
+                                    <div>
+                                        <p style={{margin: '0 0 0.15rem', color: th.textMuted}}>They like</p>
+                                        <div style={{display: 'flex', flexWrap: 'wrap', gap: '0.22rem'}}>
+                                            {(hoveredFriendPrefs?.cuisines || []).slice(0, 5).map(c => (
+                                                <span key={c} style={{
+                                                    padding: '0.08rem 0.4rem',
+                                                    borderRadius: '999px',
+                                                    backgroundColor: th.badgeBg,
+                                                    border: `1px solid ${th.border}`,
+                                                }}>{c}</span>
+                                            ))}
+                                            {(hoveredFriendPrefs?.categories || []).slice(0, 3).map(c => (
+                                                <span key={c} style={{
+                                                    padding: '0.08rem 0.4rem',
+                                                    borderRadius: '999px',
+                                                    backgroundColor: th.badgeBg,
+                                                    border: `1px solid ${th.border}`,
+                                                }}>{c}</span>
+                                            ))}
+                                            {!hoveredFriendPrefs && (
+                                                <span style={{color: th.textMuted}}>No saved taste profile yet</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <p style={{margin: '0 0 0.15rem', color: th.textMuted}}>In common with you</p>
+                                        {commonCuisines.length === 0 && commonCategories.length === 0 && (
+                                            <span style={{color: th.textMuted}}>No overlap saved yet</span>
+                                        )}
+                                        {(commonCuisines.length > 0 || commonCategories.length > 0) && (
+                                            <div style={{display: 'flex', flexWrap: 'wrap', gap: '0.22rem'}}>
+                                                {commonCuisines.map(c => (
+                                                    <span key={`cc-${c}`} style={{
+                                                        padding: '0.08rem 0.4rem',
+                                                        borderRadius: '999px',
+                                                        backgroundColor: 'rgba(34,197,94,0.1)',
+                                                        border: '1px solid rgba(34,197,94,0.4)',
+                                                        color: th.text,
+                                                    }}>{c}</span>
+                                                ))}
+                                                {commonCategories.map(c => (
+                                                    <span key={`cat-${c}`} style={{
+                                                        padding: '0.08rem 0.4rem',
+                                                        borderRadius: '999px',
+                                                        backgroundColor: 'rgba(34,197,94,0.1)',
+                                                        border: '1px solid rgba(34,197,94,0.4)',
+                                                        color: th.text,
+                                                    }}>{c}</span>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {friendsList.length > 0 && (
+                    <div style={{
+                        display: 'flex', alignItems: 'center', gap: '0.35rem',
+                        marginTop: '0.6rem', padding: '0.2rem 0.6rem',
+                        borderRadius: '20px', backgroundColor: 'rgba(139,92,246,0.1)',
+                        border: '1px solid rgba(139,92,246,0.2)',
+                    }}>
+                        <Users size={12} color="#8b5cf6"/>
+                        <span style={{
+                            fontSize: '0.68rem', fontWeight: '600', color: '#8b5cf6',
+                            fontFamily: "'Poppins',sans-serif",
+                        }}>You + {friendsList.length} friend{friendsList.length !== 1 ? 's' : ''}</span>
+                    </div>
+                )}
+
+                {isThinking && (
+                    <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem'}}>
+                        <Loader2 size={15} color="#8b5cf6" style={{animation: 'spin 1s linear infinite'}}/>
+                        <p style={{
+                            fontSize: '0.82rem', color: '#8b5cf6', fontWeight: '500',
+                            fontFamily: "'Poppins',sans-serif", margin: 0,
+                        }}>{currentPhrase}</p>
+                    </div>
+                )}
+
+                {showingResults && searchResults.length > 0 && !isThinking && (
+                    <p style={{
+                        fontSize: '0.82rem', color: th.textMuted, margin: '0.5rem 0 0',
+                        fontFamily: "'Poppins',sans-serif",
+                    }}>Found {searchResults.length} small business match{searchResults.length !== 1 ? 'es' : ''} for {groupSize > 1 ? 'your group' : 'you'}</p>
+                )}
+
+                {/* ── Error ──────────────────────────────────── */}
+                {searchError && (
+                    <div style={{
+                        display: 'flex', alignItems: 'center', gap: '0.5rem',
+                        padding: '0.5rem 0.8rem', marginTop: '0.5rem',
+                        borderRadius: '10px', backgroundColor: 'rgba(239,68,68,0.08)',
+                        border: '1px solid rgba(239,68,68,0.2)',
+                    }}>
+                        <AlertCircle size={15} color="#ef4444"/>
+                        <p style={{fontSize: '0.78rem', color: '#ef4444', margin: 0, fontFamily: "'Poppins',sans-serif"}}>{searchError}</p>
+                    </div>
+                )}
+
+                {/* ── Result Cards ────────────────────────────── */}
+                {showingResults && searchResults.length > 0 && (
+                    <div style={{
+                        display: 'flex', flexDirection: 'column', gap: '0.6rem',
+                        width: '100%', maxWidth: '560px', marginTop: '0.8rem',
+                    }}>
+                        {searchResults.map((biz, i) => {
+                            const hov = hoveredCard === i;
+                            return (
+                                <div key={biz.id || i}
+                                     onClick={() => navigate(`/business/${biz.id}`)}
+                                     onMouseEnter={() => setHoveredCard(i)}
+                                     onMouseLeave={() => setHoveredCard(null)}
+                                     style={{
+                                         display: 'flex', gap: '0.85rem', padding: '0.85rem',
+                                         borderRadius: '12px', border: `1px solid ${th.border}`,
+                                         backgroundColor: hov ? th.hoverBg : th.cardBg,
+                                         cursor: 'pointer', transition: '0.15s',
+                                     }}>
+                                    <div style={{
+                                        width: '80px', minWidth: '80px', height: '80px',
+                                        borderRadius: '10px', overflow: 'hidden',
+                                        backgroundColor: th.badgeBg, position: 'relative',
+                                    }}>
+                                        <img src={biz.image} alt={biz.name}
+                                             style={{width: '100%', height: '100%', objectFit: 'cover'}} loading="lazy"/>
+                                        <div style={{
+                                            position: 'absolute', top: '4px', right: '4px',
+                                            padding: '1px 5px', borderRadius: '6px',
+                                            backgroundColor: getMatchColor(biz.matchScore),
+                                            fontSize: '0.62rem', fontWeight: '700', color: '#fff',
+                                            fontFamily: "'Poppins',sans-serif",
+                                        }}>{biz.matchScore}%</div>
+                                    </div>
+
+                                    <div style={{flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.15rem'}}>
+                                        <div style={{display: 'flex', alignItems: 'center', gap: '0.4rem'}}>
+                                            <h3 style={{
+                                                fontSize: '0.88rem', fontWeight: '600', color: th.text,
+                                                margin: 0, lineHeight: 1.2, overflow: 'hidden',
+                                                textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                            }}>{biz.name}</h3>
+                                            {biz.isVerified && (
+                                                <div style={{
+                                                    width: '14px', height: '14px', borderRadius: '50%',
+                                                    backgroundColor: '#3b82f6', display: 'flex',
+                                                    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                                                }}>
+                                                    <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3">
+                                                        <polyline points="20 6 9 17 4 12"/>
+                                                    </svg>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap'}}>
+                                            {biz.rating && (
+                                                <div style={{display: 'flex', alignItems: 'center', gap: '0.2rem'}}>
+                                                    <Star size={11} fill="#facc15" color="#facc15"/>
+                                                    <span style={{fontSize: '0.73rem', fontWeight: '600', color: th.text}}>{biz.rating}</span>
+                                                    {biz.reviewCount > 0 && <span style={{fontSize: '0.65rem', color: th.textMuted}}>({biz.reviewCount})</span>}
+                                                </div>
+                                            )}
+                                            {biz.priceLevel && <span style={{fontSize: '0.7rem', color: th.textMuted}}>{biz.priceLevel}</span>}
+                                            {biz.distanceMeters != null && (
+                                                <span style={{fontSize: '0.66rem', color: th.textMuted}}>
+                                                    {biz.distanceMeters < 1000 ? `${biz.distanceMeters}m` : `${(biz.distanceMeters / 1000).toFixed(1)}km`}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {biz.tagLabels?.length > 0 && (
+                                            <div style={{display: 'flex', gap: '0.25rem', flexWrap: 'wrap'}}>
+                                                {biz.tagLabels.slice(0, 3).map(t => (
+                                                    <span key={t} style={{
+                                                        padding: '0.1rem 0.45rem', borderRadius: '4px',
+                                                        backgroundColor: th.badgeBg, fontSize: '0.62rem',
+                                                        color: th.textSecondary, fontWeight: '500',
+                                                    }}>{t}</span>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        <p style={{
+                                            fontSize: '0.72rem', color: '#8b5cf6', margin: '0.1rem 0 0',
+                                            fontStyle: 'italic', lineHeight: 1.3,
+                                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                        }}>{biz.matchReasoning}</p>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {/* ── Search Input — pinned to bottom ──────────────── */}
+            <div style={{
+                flexShrink: 0, padding: '0.7rem 1.5rem',
+                borderTop: `1px solid ${th.border}`,
+                backgroundColor: th.bg,
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem',
+            }}>
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: '0.5rem',
+                    width: '100%', maxWidth: '560px',
+                    padding: '0.55rem 0.7rem 0.55rem 1rem', borderRadius: '14px',
+                    border: `2px solid ${isThinking ? 'rgba(139,92,246,0.5)' : 'rgba(99,102,241,0.25)'}`,
+                    backgroundColor: th.inputBg,
+                    boxShadow: isThinking ? '0 4px 24px rgba(139,92,246,0.15)' : '0 2px 12px rgba(99,102,241,0.06)',
+                    transition: '0.3s',
+                }}>
+                    <Bot size={18} color="#8b5cf6"/>
+                    <input value={query}
+                           onChange={e => setQuery(e.target.value)}
+                           onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                           placeholder="Search small businesses near you..."
+                           disabled={isThinking}
+                           style={{
+                               flex: 1, border: 'none', background: 'transparent', fontSize: '0.86rem',
+                               fontFamily: "'Poppins',sans-serif", color: th.text, outline: 'none',
+                               opacity: isThinking ? 0.5 : 1,
+                           }}/>
+                    <button onClick={() => handleSearch()} disabled={isThinking || !query.trim()} style={{
+                        padding: '0.45rem 0.9rem', borderRadius: '10px', border: 'none',
+                        background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+                        color: '#fff', fontWeight: '600', fontSize: '0.82rem',
+                        cursor: isThinking ? 'not-allowed' : 'pointer',
+                        fontFamily: "'Poppins',sans-serif",
+                        display: 'flex', alignItems: 'center', gap: '0.3rem',
+                        opacity: (isThinking || !query.trim()) ? 0.5 : 1, transition: '0.2s',
+                    }}>
+                        {isThinking
+                            ? <Loader2 size={14} style={{animation: 'spin 1s linear infinite'}}/>
+                            : <Search size={14}/>}
+                        {isThinking ? 'Searching...' : 'Search'}
+                    </button>
+                </div>
+
+                {!showingResults && (
+                    <div style={{display: 'flex', gap: '0.4rem', flexWrap: 'wrap', justifyContent: 'center'}}>
+                        {AI_SUGGESTIONS.map(s => (
+                            <button key={s} onClick={() => { setQuery(s); handleSearch(s); }} style={{
+                                padding: '0.25rem 0.65rem', borderRadius: '50px',
+                                border: `1px solid ${th.border}`, backgroundColor: th.badgeBg,
+                                fontSize: '0.68rem', color: th.textSecondary, cursor: 'pointer',
+                                fontFamily: "'Poppins',sans-serif", fontWeight: '500', transition: '0.15s',
+                            }}
+                                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#8b5cf6'; e.currentTarget.style.color = '#8b5cf6'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.borderColor = th.border; e.currentTarget.style.color = th.textSecondary; }}>
+                                {s}
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
         </div>
-        <div style={{display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap', justifyContent: 'center'}}>
-            {['Best pizza nearby', 'Quiet coffee shop to work', 'Date night restaurant', 'Cheap lunch under $15'].map(s => (
-                <button key={s} style={{
-                    padding: '0.3rem 0.7rem', borderRadius: '50px',
-                    border: `1px solid ${th.border}`, backgroundColor: th.badgeBg,
-                    fontSize: '0.72rem', color: th.textSecondary, cursor: 'pointer',
-                    fontFamily: "'Poppins',sans-serif", fontWeight: '500', transition: '0.15s',
-                }} onMouseEnter={e => {
-                    e.currentTarget.style.borderColor = '#8b5cf6';
-                    e.currentTarget.style.color = '#8b5cf6'
-                }}
-                        onMouseLeave={e => {
-                            e.currentTarget.style.borderColor = th.border;
-                            e.currentTarget.style.color = th.textSecondary
-                        }}>
-                    {s}
-                </button>
-            ))}
-        </div>
-        <p style={{fontSize: '0.7rem', color: th.textMuted, marginTop: '2rem', maxWidth: '350px', lineHeight: '1.5'}}>
-            Coming soon — AI recommendations powered by your preferences, friends' picks, and real business data.
-        </p>
-    </div>);
+    );
+};
 
 
 /* ═══════════════════════════════════════════════════════════════

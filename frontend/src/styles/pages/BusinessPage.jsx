@@ -27,7 +27,7 @@ import {
     Facebook, Twitter, Link2, Mail, ImagePlus
 } from 'lucide-react';
 
-const API = 'http://localhost:5000/api';
+const API = 'http://localhost:5001/api';
 const FALLBACK_IMG = 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&h=500&fit=crop';
 
 /* ─── Theme ────────────────────────────────────────────────── */
