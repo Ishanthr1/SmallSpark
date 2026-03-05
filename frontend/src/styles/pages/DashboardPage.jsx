@@ -21,7 +21,6 @@ import DealsContent from './DealsPage';
 import FriendsPage from './FriendsPage';
 import { getPreferences, setPreferences, getFavorites, setFavorites, getReviews } from '../../lib/preferences';
 import DigitalPage from './DigitalPage';
-import { getPreferences, setPreferences } from '../../lib/preferences';
 import { listFriends } from '../../lib/friends';
 
 const API = 'http://localhost:5001/api';
