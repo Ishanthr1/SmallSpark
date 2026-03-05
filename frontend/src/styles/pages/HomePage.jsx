@@ -458,7 +458,7 @@ const HeroSection = ({theme, onNavigate, isDarkMode}) => {
                         fontFamily: "'Poppins', sans-serif", letterSpacing: '-0.035em',
                         color: theme.text
                     }}>
-                        Sparking the Fire for <span style={{fontStyle: 'italic', fontWeight: '400'}}>Local Businesses</span>
+                        Sparking the <span style={{fontFamily: "'Lobster', cursive", fontWeight: 400}}>Fire</span> for <span style={{fontStyle: 'italic', fontWeight: '400'}}>Local Businesses</span>
                     </h1>
 
                     <div style={{minHeight: '4.2rem', marginBottom: '2.5rem'}}>
@@ -754,7 +754,7 @@ const HomePage = () => {
 // ─── Global Styles ────────────────────────────────────────────
 const styleSheet = document.createElement('style');
 styleSheet.textContent = `
-  @import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,700&family=Lobster&display=swap');
   * { box-sizing: border-box; }
   ::placeholder { color: #999 !important; }
 
