@@ -1,8 +1,9 @@
 /**
  * DigitalPage.jsx — Digital Business Discovery via Product Hunt API
- *
- * Calls /api/digital/search on the Flask backend, which proxies
- * Product Hunt's GraphQL API. Same UX patterns as Discover tab.
+ * - Hover subcategory menus on each category (like DiscoveryPage)
+ * - Click on a card opens DigitalBusinessPage.jsx detail view
+ * - Search fixed (client-side filtering, no broken PH 'search' arg)
+ * - Pagination fetches up to 400 results per category
  */
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
@@ -10,43 +11,172 @@ import {
     Search, X, Star, Heart, Globe, ExternalLink, ChevronLeft, ChevronRight,
     ChevronDown, Loader2, AlertCircle, RefreshCw, Filter, Monitor,
     Zap, Palette, Code, ShoppingCart, BookOpen, TrendingUp, Video,
-    Users, Database, DollarSign, Cpu, ArrowUpRight, ThumbsUp
+    Database, DollarSign, Cpu, ArrowUpRight, ThumbsUp,
+    FileText, Users, Settings, BarChart2, Shield, Layout,
+    Mic, Music, PenTool, Package, Mail, CreditCard, Clock,
+    ToggleLeft, Terminal, GitBranch, TestTube, Server, Cloud,
+    Bot, Image, Headphones, Briefcase, Film, Rss, Globe2, Lock
 } from 'lucide-react';
+import DigitalBusinessPage from './DigitalBusinessPage.jsx';
 
 const API = 'http://localhost:5000/api';
 const FALLBACK_IMG = 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=480&h=320&fit=crop';
 
-/* ─── Theme (matches DashboardPage) ───────────────────────── */
 const light = {
     bg: '#fff', bgAlt: '#f9f9f9', text: '#1a1a1a', textSecondary: '#555',
     textMuted: '#999', border: '#e8e8e8', cardBg: '#fff', accent: '#1a1a1a',
     accentText: '#fff', hoverBg: '#f0f0f0', activeBg: '#e8e8e8',
     badgeBg: '#f0f0f0', inputBg: '#f5f5f5', dropdownBg: '#fff',
+    categoryBar: '#fafafa', categoryBorder: '#eee',
 };
 const dark = {
     bg: '#0a0a0a', bgAlt: '#0f0f0f', text: '#f0f0f0', textSecondary: '#aaa',
     textMuted: '#666', border: '#222', cardBg: '#141414', accent: '#f0f0f0',
     accentText: '#0a0a0a', hoverBg: '#1a1a1a', activeBg: '#222',
     badgeBg: '#1e1e1e', inputBg: '#141414', dropdownBg: '#161616',
+    categoryBar: '#111', categoryBorder: '#222',
 };
 
-/* ─── Categories ───────────────────────────────────────────── */
+/* ─── Category definitions with subcategories ─────────────────── */
 const CATEGORIES = [
-    { id: 'all',            label: 'All',           icon: Globe },
-    { id: 'productivity',   label: 'Productivity',  icon: Zap },
-    { id: 'design',         label: 'Design',        icon: Palette },
-    { id: 'development',    label: 'Development',   icon: Code },
-    { id: 'e-commerce',     label: 'E-Commerce',    icon: ShoppingCart },
-    { id: 'education',      label: 'Education',     icon: BookOpen },
-    { id: 'marketing',      label: 'Marketing',     icon: TrendingUp },
-    { id: 'media',          label: 'Media',         icon: Video },
-    { id: 'ai',             label: 'AI Tools',      icon: Cpu },
-    { id: 'finance',        label: 'Finance',       icon: DollarSign },
-    { id: 'infrastructure', label: 'Infrastructure',icon: Database },
+    {
+        id: 'all', label: 'All', icon: Globe,
+        subs: []
+    },
+    {
+        id: 'productivity', label: 'Productivity', icon: Zap,
+        subs: [
+            { name: 'Task Management', icon: FileText },
+            { name: 'Time Tracking',   icon: Clock },
+            { name: 'Note Taking',     icon: PenTool },
+            { name: 'Calendars',       icon: BarChart2 },
+            { name: 'Project Mgmt',    icon: Layout },
+            { name: 'Team Collab',     icon: Users },
+            { name: 'No-Code',         icon: ToggleLeft },
+            { name: 'Automation',      icon: Settings },
+        ]
+    },
+    {
+        id: 'design', label: 'Design', icon: Palette,
+        subs: [
+            { name: 'UI/UX Tools',    icon: Layout },
+            { name: 'Logo & Branding',icon: Palette },
+            { name: 'Illustration',   icon: PenTool },
+            { name: 'Prototyping',    icon: Monitor },
+            { name: 'Stock Assets',   icon: Image },
+            { name: 'Video Editing',  icon: Film },
+            { name: '3D Tools',       icon: Package },
+            { name: 'Color Tools',    icon: Palette },
+        ]
+    },
+    {
+        id: 'development', label: 'Development', icon: Code,
+        subs: [
+            { name: 'Code Editors', icon: Terminal },
+            { name: 'APIs & SDKs',  icon: GitBranch },
+            { name: 'DevOps',       icon: Server },
+            { name: 'Testing',      icon: TestTube },
+            { name: 'Open Source',  icon: Globe2 },
+            { name: 'Databases',    icon: Database },
+            { name: 'Cloud',        icon: Cloud },
+            { name: 'CLI Tools',    icon: Terminal },
+        ]
+    },
+    {
+        id: 'ai', label: 'AI Tools', icon: Cpu,
+        subs: [
+            { name: 'AI Writing',      icon: FileText },
+            { name: 'AI Art',          icon: Image },
+            { name: 'AI Coding',       icon: Code },
+            { name: 'AI Chat',         icon: Bot },
+            { name: 'Machine Learning',icon: Cpu },
+            { name: 'AI Productivity', icon: Zap },
+            { name: 'AI Video',        icon: Film },
+            { name: 'AI Music',        icon: Music },
+        ]
+    },
+    {
+        id: 'e-commerce', label: 'E-Commerce', icon: ShoppingCart,
+        subs: [
+            { name: 'Online Stores',   icon: ShoppingCart },
+            { name: 'Dropshipping',    icon: Package },
+            { name: 'Payments',        icon: CreditCard },
+            { name: 'Inventory',       icon: Database },
+            { name: 'Marketplaces',    icon: Globe2 },
+            { name: 'Print on Demand', icon: FileText },
+        ]
+    },
+    {
+        id: 'marketing', label: 'Marketing', icon: TrendingUp,
+        subs: [
+            { name: 'SEO Tools',      icon: Search },
+            { name: 'Email Marketing',icon: Mail },
+            { name: 'Social Media',   icon: Users },
+            { name: 'Analytics',      icon: BarChart2 },
+            { name: 'CRM',            icon: Briefcase },
+            { name: 'Ad Tools',       icon: TrendingUp },
+            { name: 'Content Mktg',   icon: FileText },
+            { name: 'Affiliate',      icon: Globe2 },
+        ]
+    },
+    {
+        id: 'education', label: 'Education', icon: BookOpen,
+        subs: [
+            { name: 'Online Courses', icon: BookOpen },
+            { name: 'Language Learn', icon: Globe2 },
+            { name: 'Kids Learning',  icon: Users },
+            { name: 'Coding Edu',     icon: Code },
+            { name: 'Tutoring',       icon: Users },
+            { name: 'Flashcards',     icon: FileText },
+        ]
+    },
+    {
+        id: 'media', label: 'Media', icon: Video,
+        subs: [
+            { name: 'Podcasting',    icon: Mic },
+            { name: 'Newsletters',   icon: Rss },
+            { name: 'Video Hosting', icon: Video },
+            { name: 'Live Streaming',icon: Film },
+            { name: 'Music Tools',   icon: Headphones },
+            { name: 'Publishing',    icon: FileText },
+        ]
+    },
+    {
+        id: 'finance', label: 'Finance', icon: DollarSign,
+        subs: [
+            { name: 'Personal Finance', icon: CreditCard },
+            { name: 'Crypto',           icon: DollarSign },
+            { name: 'Invoicing',        icon: FileText },
+            { name: 'Accounting',       icon: BarChart2 },
+            { name: 'Investing',        icon: TrendingUp },
+            { name: 'Budgeting',        icon: DollarSign },
+        ]
+    },
+    {
+        id: 'infrastructure', label: 'Infrastructure', icon: Database,
+        subs: [
+            { name: 'Web Hosting', icon: Server },
+            { name: 'DNS & CDN',   icon: Globe2 },
+            { name: 'Monitoring',  icon: BarChart2 },
+            { name: 'Security',    icon: Lock },
+            { name: 'Serverless',  icon: Cloud },
+        ]
+    },
+    {
+        id: 'freelance', label: 'Freelance', icon: Briefcase,
+        subs: [
+            { name: 'Freelance Jobs', icon: Briefcase },
+            { name: 'Portfolios',     icon: Layout },
+            { name: 'Client Mgmt',    icon: Users },
+            { name: 'Proposals',      icon: FileText },
+            { name: 'Contracts',      icon: Shield },
+            { name: 'Time Billing',   icon: Clock },
+        ]
+    },
 ];
 
-const PRICE_FILTERS  = ['All', 'Free', 'Freemium', 'Subscription', 'One-time', 'Paid'];
-const SORT_OPTIONS   = [
+const PRICE_FILTERS = ['All', 'Free', 'Freemium', 'Subscription', 'One-time', 'Paid'];
+const SORT_OPTIONS  = [
     { value: 'featured',      label: 'Featured' },
     { value: 'most_votes',    label: 'Most Upvoted' },
     { value: 'highest_rated', label: 'Highest Rated' },
@@ -54,7 +184,6 @@ const SORT_OPTIONS   = [
     { value: 'name',          label: 'Name A–Z' },
 ];
 
-/* ─── Helpers ──────────────────────────────────────────────── */
 const priceColor = price => ({
     'Free':         '#16a34a',
     'Freemium':     '#2563eb',
@@ -65,11 +194,8 @@ const priceColor = price => ({
 
 async function apiFetch(url) {
     let resp;
-    try {
-        resp = await fetch(url);
-    } catch {
-        throw new Error('Cannot connect to server. Make sure the backend is running.');
-    }
+    try { resp = await fetch(url); }
+    catch { throw new Error('Cannot connect to server. Make sure the backend is running.'); }
     const data = await resp.json().catch(() => null);
     if (!data) throw new Error('Invalid server response');
     if (data.error) throw new Error(data.error);
@@ -92,15 +218,110 @@ const Stars = ({ rating, size = 12, th }) => (
     </div>
 );
 
-/* ─── Business Card ────────────────────────────────────────── */
-const DigitalCard = ({ biz, th, isFav, onFav }) => {
-    const [imgErr, setImgErr] = useState(false);
+/* ─── Category Bar with hover subcategories ────────────────── */
+const CatBar = ({ th, selectedCat, selectedSub, onSelectCat, onSelectSub }) => {
+    const [hovered, setHovered] = useState(null);
+    const timerRef = useRef(null);
+
     return (
         <div style={{
-            display: 'flex', gap: '0.85rem', padding: '0.9rem',
-            borderBottom: `1px solid ${th.border}`,
-            transition: '0.15s', cursor: 'pointer',
-        }}
+            backgroundColor: th.categoryBar,
+            borderBottom: `1px solid ${th.categoryBorder}`,
+            position: 'relative', zIndex: 60, flexShrink: 0,
+        }}>
+            <div style={{ display: 'flex', padding: '0.35rem 1rem', alignItems: 'center', overflowX: 'auto', scrollbarWidth: 'none' }}>
+                {CATEGORIES.map(cat => {
+                    const isOpen = hovered === cat.id;
+                    const isActive = selectedCat === cat.id;
+                    const Icon = cat.icon;
+
+                    return (
+                        <div key={cat.id} style={{ position: 'relative', flexShrink: 0 }}
+                            onMouseEnter={() => { clearTimeout(timerRef.current); setHovered(cat.id); }}
+                            onMouseLeave={() => { timerRef.current = setTimeout(() => setHovered(null), 200); }}
+                        >
+                            <button onClick={() => { onSelectCat(cat.id); onSelectSub(null); setHovered(null); }}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '0.3rem',
+                                    padding: '0.7rem 0.8rem', fontSize: '0.8rem',
+                                    fontWeight: isActive ? '600' : '500',
+                                    color: (isActive || isOpen) ? th.text : th.textSecondary,
+                                    backgroundColor: 'transparent', border: 'none', cursor: 'pointer',
+                                    fontFamily: "'Poppins',sans-serif", whiteSpace: 'nowrap',
+                                    borderBottom: isActive ? `2px solid ${th.accent}` : '2px solid transparent',
+                                    transition: '0.12s',
+                                }}
+                            >
+                                <Icon size={13} strokeWidth={1.5} />
+                                {cat.label}
+                                {cat.subs.length > 0 && (
+                                    <ChevronDown size={11} style={{ transform: isOpen ? 'rotate(180deg)' : '', transition: '0.2s' }} />
+                                )}
+                            </button>
+
+                            {/* Subcategory dropdown */}
+                            {isOpen && cat.subs.length > 0 && (
+                                <div
+                                    onMouseEnter={() => { clearTimeout(timerRef.current); setHovered(cat.id); }}
+                                    onMouseLeave={() => { timerRef.current = setTimeout(() => setHovered(null), 200); }}
+                                    style={{
+                                        position: 'absolute', top: '100%', left: 0,
+                                        backgroundColor: th.dropdownBg, border: `1px solid ${th.border}`,
+                                        borderRadius: '12px', padding: '0.65rem',
+                                        boxShadow: '0 12px 40px rgba(0,0,0,0.14)',
+                                        zIndex: 1, minWidth: '320px',
+                                        display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)',
+                                        gap: '0.08rem',
+                                    }}
+                                >
+                                    {cat.subs.map(sub => {
+                                        const SubIcon = sub.icon;
+                                        const subActive = selectedSub === sub.name;
+                                        return (
+                                            <button key={sub.name}
+                                                onClick={() => {
+                                                    onSelectCat(cat.id);
+                                                    onSelectSub(subActive ? null : sub.name);
+                                                    setHovered(null);
+                                                }}
+                                                style={{
+                                                    display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                                    padding: '0.45rem 0.55rem', borderRadius: '7px', border: 'none',
+                                                    cursor: 'pointer', backgroundColor: subActive ? th.activeBg : 'transparent',
+                                                    fontFamily: "'Poppins',sans-serif", fontSize: '0.78rem',
+                                                    fontWeight: subActive ? '600' : '450',
+                                                    color: subActive ? th.text : th.textSecondary,
+                                                    transition: '0.1s', textAlign: 'left', width: '100%',
+                                                }}
+                                                onMouseEnter={e => { if (!subActive) { e.currentTarget.style.backgroundColor = th.hoverBg; e.currentTarget.style.color = th.text; }}}
+                                                onMouseLeave={e => { if (!subActive) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = th.textSecondary; }}}
+                                            >
+                                                <SubIcon size={14} strokeWidth={1.5} />
+                                                <span>{sub.name}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
+/* ─── Digital Business Card ────────────────────────────────── */
+const DigitalCard = ({ biz, th, isFav, onFav, onClick }) => {
+    const [imgErr, setImgErr] = useState(false);
+    return (
+        <div
+            onClick={() => onClick(biz)}
+            style={{
+                display: 'flex', gap: '0.85rem', padding: '0.9rem',
+                borderBottom: `1px solid ${th.border}`,
+                transition: '0.15s', cursor: 'pointer',
+            }}
             onMouseEnter={e => e.currentTarget.style.backgroundColor = th.hoverBg}
             onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
         >
@@ -169,10 +390,7 @@ const DigitalCard = ({ biz, th, isFav, onFav }) => {
                         </span>
                     )}
                     {biz.votes > 0 && (
-                        <span style={{
-                            fontSize: '0.65rem', color: '#da552f',
-                            display: 'flex', alignItems: 'center', gap: '0.2rem',
-                        }}>
+                        <span style={{ fontSize: '0.65rem', color: '#da552f', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
                             <ThumbsUp size={10} /> {biz.votes.toLocaleString()}
                         </span>
                     )}
@@ -210,40 +428,7 @@ const DigitalCard = ({ biz, th, isFav, onFav }) => {
     );
 };
 
-/* ─── Category Bar ─────────────────────────────────────────── */
-const CatBar = ({ th, selected, onSelect }) => (
-    <div style={{
-        display: 'flex', alignItems: 'center', gap: '0.1rem',
-        padding: '0.35rem 1rem', borderBottom: `1px solid ${th.border}`,
-        backgroundColor: th.bg, overflowX: 'auto', flexShrink: 0,
-        scrollbarWidth: 'none',
-    }}>
-        {CATEGORIES.map(c => {
-            const active = selected === c.id;
-            const Icon = c.icon;
-            return (
-                <button key={c.id} onClick={() => onSelect(c.id)} style={{
-                    display: 'flex', alignItems: 'center', gap: '0.3rem',
-                    padding: '0.6rem 0.75rem', borderRadius: '0', border: 'none',
-                    backgroundColor: 'transparent',
-                    color: active ? th.text : th.textSecondary,
-                    fontFamily: "'Poppins',sans-serif", fontSize: '0.8rem',
-                    fontWeight: active ? '600' : '450', cursor: 'pointer',
-                    whiteSpace: 'nowrap', transition: '0.12s',
-                    borderBottom: active ? `2px solid ${th.accent}` : '2px solid transparent',
-                }}
-                    onMouseEnter={e => { if (!active) { e.currentTarget.style.color = th.text; } }}
-                    onMouseLeave={e => { if (!active) { e.currentTarget.style.color = th.textSecondary; } }}
-                >
-                    <Icon size={14} strokeWidth={1.5} />
-                    {c.label}
-                </button>
-            );
-        })}
-    </div>
-);
-
-/* ─── Pagination ───────────────────────────────────────────── */
+/* ─── Pagination ────────────────────────────────────────────── */
 const Pager = ({ page, total, onPage, th }) => {
     if (total <= 1) return null;
     const pages = [];
@@ -266,22 +451,24 @@ const Pager = ({ page, total, onPage, th }) => {
 const DigitalPage = ({ isDark = true }) => {
     const th = isDark ? dark : light;
 
-    const [businesses, setBusinesses]   = useState([]);
-    const [loading, setLoading]         = useState(false);
-    const [error, setError]             = useState('');
-    const [hasSearched, setHasSearched] = useState(false);
+    const [businesses, setBusinesses]     = useState([]);
+    const [loading, setLoading]           = useState(false);
+    const [error, setError]               = useState('');
+    const [hasSearched, setHasSearched]   = useState(false);
 
-    const [query, setQuery]             = useState('');
-    const [category, setCategory]       = useState('all');
-    const [priceFilter, setPriceFilter] = useState('All');
-    const [sortBy, setSortBy]           = useState('featured');
-    const [showFilters, setShowFilters] = useState(false);
+    const [query, setQuery]               = useState('');
+    const [category, setCategory]         = useState('all');
+    const [subcategory, setSubcategory]   = useState(null);
+    const [priceFilter, setPriceFilter]   = useState('All');
+    const [sortBy, setSortBy]             = useState('featured');
+    const [showFilters, setShowFilters]   = useState(false);
 
-    const [page, setPage]               = useState(1);
-    const [totalPages, setTotalPages]   = useState(1);
-    const [total, setTotal]             = useState(0);
+    const [page, setPage]                 = useState(1);
+    const [totalPages, setTotalPages]     = useState(1);
+    const [total, setTotal]               = useState(0);
 
-    const [favs, setFavs]               = useState(new Set());
+    const [favs, setFavs]                 = useState(new Set());
+    const [selectedBiz, setSelectedBiz]   = useState(null);
 
     const lastParams = useRef({});
     const searchTimer = useRef(null);
@@ -290,23 +477,27 @@ const DigitalPage = ({ isDark = true }) => {
         setFavs(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
     }, []);
 
-    /* ─── Core search function ─────────────────────────────── */
+    /* ─── Core search ─────────────────────────────────────── */
     const doSearch = useCallback(async (opts = {}) => {
-        const q    = opts.query    ?? query;
-        const cat  = opts.category ?? category;
-        const price = opts.price   ?? priceFilter;
-        const sort = opts.sort     ?? sortBy;
-        const pg   = opts.page     ?? 1;
+        const q    = opts.query      !== undefined ? opts.query    : query;
+        const cat  = opts.category   !== undefined ? opts.category : category;
+        const sub  = opts.subcategory!== undefined ? opts.subcategory : subcategory;
+        const price = opts.price     !== undefined ? opts.price    : priceFilter;
+        const sort = opts.sort       !== undefined ? opts.sort     : sortBy;
+        const pg   = opts.page       !== undefined ? opts.page     : 1;
 
-        lastParams.current = { q, cat, price, sort, pg };
-
-        setLoading(true);
-        setError('');
-        setHasSearched(true);
+        lastParams.current = { q, cat, sub, price, sort, pg };
+        setLoading(true); setError(''); setHasSearched(true);
 
         try {
             const params = new URLSearchParams({
-                q, category: cat, price, sort, page: pg, per_page: 12
+                q: q || '',
+                category: cat || 'all',
+                subcategory: sub || '',
+                price: price || 'All',
+                sort: sort || 'featured',
+                page: pg,
+                per_page: 12,
             });
             const data = await apiFetch(`${API}/digital/search?${params}`);
             setBusinesses(data.businesses || []);
@@ -318,50 +509,77 @@ const DigitalPage = ({ isDark = true }) => {
             setBusinesses([]);
         }
         setLoading(false);
-    }, [query, category, priceFilter, sortBy]);
+    }, [query, category, subcategory, priceFilter, sortBy]);
 
-    /* ─── Auto-search on category / price / sort change ────── */
+    /* ─── Re-search when filters change ──────────────────── */
     useEffect(() => {
         if (!hasSearched) return;
-        doSearch({ category, price: priceFilter, sort: sortBy, page: 1 });
-    }, [category, priceFilter, sortBy]); // eslint-disable-line
+        doSearch({ category, subcategory, price: priceFilter, sort: sortBy, page: 1 });
+    }, [category, subcategory, priceFilter, sortBy]); // eslint-disable-line
 
-    /* ─── Debounced search on query typing ─────────────────── */
+    /* ─── Debounced search on query ────────────────────────── */
     const handleQueryChange = e => {
         const v = e.target.value;
         setQuery(v);
         clearTimeout(searchTimer.current);
-        searchTimer.current = setTimeout(() => {
-            doSearch({ query: v, page: 1 });
-        }, 400);
+        searchTimer.current = setTimeout(() => doSearch({ query: v, page: 1 }), 400);
+    };
+
+    const handleCatSelect = cat => {
+        setCategory(cat);
+        setSubcategory(null);
+    };
+    const handleSubSelect = sub => {
+        setSubcategory(sub);
     };
 
     const handlePage = p => doSearch({ page: p });
 
     const retry = () => {
         const lp = lastParams.current;
-        doSearch({ query: lp.q, category: lp.cat, price: lp.price, sort: lp.sort, page: lp.pg });
+        doSearch({ query: lp.q, category: lp.cat, subcategory: lp.sub, price: lp.price, sort: lp.sort, page: lp.pg });
     };
 
-    const hasFilters = category !== 'all' || priceFilter !== 'All' || query;
+    const hasFilters = category !== 'all' || subcategory || priceFilter !== 'All' || query;
     const clearFilters = () => {
-        setQuery(''); setCategory('all'); setPriceFilter('All'); setSortBy('featured');
-        doSearch({ query: '', category: 'all', price: 'All', sort: 'featured', page: 1 });
+        setQuery(''); setCategory('all'); setSubcategory(null);
+        setPriceFilter('All'); setSortBy('featured');
+        doSearch({ query: '', category: 'all', subcategory: null, price: 'All', sort: 'featured', page: 1 });
     };
+
+    /* ─── If a biz is selected, show detail page ────────────── */
+    if (selectedBiz) {
+        return (
+            <DigitalBusinessPage
+                biz={selectedBiz}
+                isDark={isDark}
+                onBack={() => setSelectedBiz(null)}
+            />
+        );
+    }
+
+    const catLabel = CATEGORIES.find(c => c.id === category)?.label || 'All';
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: th.bg, fontFamily: "'Poppins',-apple-system,sans-serif", color: th.text }}>
+        <div style={{
+            display: 'flex', flexDirection: 'column', height: '100%',
+            backgroundColor: th.bg, fontFamily: "'Poppins',-apple-system,sans-serif", color: th.text,
+        }}>
+            {/* ── Category bar with subcategory hovers ──────── */}
+            <CatBar
+                th={th}
+                selectedCat={category}
+                selectedSub={subcategory}
+                onSelectCat={handleCatSelect}
+                onSelectSub={handleSubSelect}
+            />
 
-            {/* ── Category bar ─────────────────────────────── */}
-            <CatBar th={th} selected={category} onSelect={cat => setCategory(cat)} />
-
-            {/* ── Search + controls bar ─────────────────────── */}
+            {/* ── Search + controls ─────────────────────────── */}
             <div style={{
                 display: 'flex', gap: '0.5rem', alignItems: 'center',
                 padding: '0.6rem 1rem', borderBottom: `1px solid ${th.border}`,
                 backgroundColor: th.bg, flexShrink: 0,
             }}>
-                {/* Search input */}
                 <div style={{
                     display: 'flex', alignItems: 'center', gap: '0.4rem',
                     backgroundColor: th.inputBg, borderRadius: '10px',
@@ -387,7 +605,6 @@ const DigitalPage = ({ isDark = true }) => {
                     )}
                 </div>
 
-                {/* Sort dropdown */}
                 <div style={{ position: 'relative' }}>
                     <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{
                         padding: '0.47rem 1.8rem 0.47rem 0.7rem', borderRadius: '10px',
@@ -400,7 +617,6 @@ const DigitalPage = ({ isDark = true }) => {
                     <ChevronDown size={12} color={th.textMuted} style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
                 </div>
 
-                {/* Filters toggle */}
                 <button onClick={() => setShowFilters(!showFilters)} style={{
                     display: 'flex', alignItems: 'center', gap: '0.35rem',
                     padding: '0.47rem 0.8rem', borderRadius: '10px',
@@ -427,12 +643,9 @@ const DigitalPage = ({ isDark = true }) => {
                 )}
             </div>
 
-            {/* ── Filter panel ─────────────────────────────── */}
+            {/* ── Filter panel ────────────────────────────── */}
             {showFilters && (
-                <div style={{
-                    padding: '0.8rem 1rem', borderBottom: `1px solid ${th.border}`,
-                    backgroundColor: th.bgAlt, flexShrink: 0,
-                }}>
+                <div style={{ padding: '0.8rem 1rem', borderBottom: `1px solid ${th.border}`, backgroundColor: th.bgAlt, flexShrink: 0 }}>
                     <p style={{ fontSize: '0.7rem', fontWeight: '600', color: th.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>Pricing Model</p>
                     <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
                         {PRICE_FILTERS.map(p => (
@@ -449,8 +662,37 @@ const DigitalPage = ({ isDark = true }) => {
                 </div>
             )}
 
-            {/* ── Results meta bar ─────────────────────────── */}
-            {hasSearched && !loading && !error && (
+            {/* ── Active filter chips ──────────────────────── */}
+            {(subcategory || (category !== 'all')) && (
+                <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', padding: '0.4rem 1rem', borderBottom: `1px solid ${th.border}`, backgroundColor: th.bg, flexShrink: 0, flexWrap: 'wrap' }}>
+                    {category !== 'all' && (
+                        <span style={{
+                            display: 'flex', alignItems: 'center', gap: '0.25rem',
+                            fontSize: '0.72rem', fontWeight: '600', color: th.text,
+                            backgroundColor: th.activeBg, padding: '0.2rem 0.6rem',
+                            borderRadius: '50px', cursor: 'pointer',
+                        }} onClick={() => { setCategory('all'); setSubcategory(null); }}>
+                            {catLabel} <X size={11} />
+                        </span>
+                    )}
+                    {subcategory && (
+                        <span style={{
+                            display: 'flex', alignItems: 'center', gap: '0.25rem',
+                            fontSize: '0.72rem', fontWeight: '600', color: th.text,
+                            backgroundColor: th.badgeBg, padding: '0.2rem 0.6rem',
+                            borderRadius: '50px', border: `1px solid ${th.border}`, cursor: 'pointer',
+                        }} onClick={() => setSubcategory(null)}>
+                            {subcategory} <X size={11} />
+                        </span>
+                    )}
+                    <span style={{ marginLeft: 'auto', fontSize: '0.65rem', color: th.textMuted }}>
+                        Powered by <span style={{ color: '#da552f', fontWeight: '600' }}>Product Hunt</span>
+                    </span>
+                </div>
+            )}
+
+            {/* ── Results meta bar ────────────────────────── */}
+            {hasSearched && !loading && !error && !subcategory && category === 'all' && (
                 <div style={{
                     display: 'flex', alignItems: 'center', gap: '0.4rem',
                     padding: '0.4rem 1rem', borderBottom: `1px solid ${th.border}`,
@@ -460,32 +702,25 @@ const DigitalPage = ({ isDark = true }) => {
                     <span style={{ fontSize: '0.75rem', color: th.textMuted }}>
                         <span style={{ fontWeight: '600', color: th.text }}>{total}</span> digital products
                         {query && <> for "<span style={{ fontWeight: '600', color: th.text }}>{query}</span>"</>}
-                        {category !== 'all' && <> in <span style={{ fontWeight: '600', color: th.text }}>{CATEGORIES.find(c => c.id === category)?.label}</span></>}
                     </span>
-                    <span style={{ marginLeft: 'auto', fontSize: '0.65rem', color: th.textMuted, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <span style={{ marginLeft: 'auto', fontSize: '0.65rem', color: th.textMuted }}>
                         Powered by <span style={{ color: '#da552f', fontWeight: '600' }}>Product Hunt</span>
                     </span>
                 </div>
             )}
 
-            {/* ── Main content area ────────────────────────── */}
+            {/* ── Main content ─────────────────────────────── */}
             <div style={{ flex: 1, overflowY: 'auto' }}>
 
-                {/* Empty state — before first search */}
+                {/* Empty state */}
                 {!hasSearched && !loading && (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '3rem 2rem', textAlign: 'center' }}>
-                        <div style={{
-                            width: '80px', height: '80px', borderRadius: '50%',
-                            backgroundColor: th.badgeBg, display: 'flex', alignItems: 'center',
-                            justifyContent: 'center', marginBottom: '1.5rem',
-                        }}>
+                        <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: th.badgeBg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.5rem' }}>
                             <Monitor size={36} color={th.textMuted} style={{ opacity: 0.5 }} />
                         </div>
-                        <h2 style={{ fontSize: '1.1rem', fontWeight: '600', color: th.text, marginBottom: '0.4rem' }}>
-                            Discover Digital Businesses
-                        </h2>
+                        <h2 style={{ fontSize: '1.1rem', fontWeight: '600', color: th.text, marginBottom: '0.4rem' }}>Discover Digital Businesses</h2>
                         <p style={{ fontSize: '0.84rem', color: th.textMuted, lineHeight: '1.5', maxWidth: '280px', marginBottom: '1.5rem' }}>
-                            Search for SaaS tools, platforms, marketplaces, dev tools, and more — all 100% online businesses
+                            Browse SaaS tools, platforms, dev tools, AI apps and more — all 100% online
                         </p>
                         <button onClick={() => doSearch({ page: 1 })} style={{
                             padding: '0.55rem 1.4rem', borderRadius: '10px',
@@ -528,15 +763,28 @@ const DigitalPage = ({ isDark = true }) => {
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4rem 2rem', textAlign: 'center' }}>
                                 <Monitor size={44} color={th.textMuted} style={{ marginBottom: '1rem', opacity: 0.3 }} />
                                 <h3 style={{ fontSize: '1rem', fontWeight: '600', color: th.text, marginBottom: '0.3rem' }}>No results found</h3>
-                                <p style={{ fontSize: '0.82rem', color: th.textMuted, marginBottom: '1rem' }}>Try a different search term or clear your filters</p>
+                                <p style={{ fontSize: '0.82rem', color: th.textMuted, marginBottom: '1rem' }}>Try a different search or clear your filters</p>
                                 <button onClick={clearFilters} style={{ padding: '0.45rem 1.1rem', borderRadius: '8px', backgroundColor: th.accent, color: th.accentText, border: 'none', cursor: 'pointer', fontWeight: '600', fontSize: '0.82rem', fontFamily: "'Poppins',sans-serif" }}>
                                     Clear filters
                                 </button>
                             </div>
                         ) : (
                             <>
+                                <div style={{ padding: '0.4rem 1rem', fontSize: '0.72rem', color: th.textMuted, borderBottom: `1px solid ${th.border}`, backgroundColor: th.bg }}>
+                                    <span style={{ fontWeight: '600', color: th.text }}>{total}</span> results
+                                    {subcategory && <> in <span style={{ fontWeight: '600', color: th.text }}>{subcategory}</span></>}
+                                    {!subcategory && category !== 'all' && <> in <span style={{ fontWeight: '600', color: th.text }}>{catLabel}</span></>}
+                                    <span style={{ float: 'right' }}>Page {page}/{totalPages}</span>
+                                </div>
                                 {businesses.map(biz => (
-                                    <DigitalCard key={biz.id} biz={biz} th={th} isFav={favs.has(biz.id)} onFav={toggleFav} />
+                                    <DigitalCard
+                                        key={biz.id}
+                                        biz={biz}
+                                        th={th}
+                                        isFav={favs.has(biz.id)}
+                                        onFav={toggleFav}
+                                        onClick={setSelectedBiz}
+                                    />
                                 ))}
                                 <Pager page={page} total={totalPages} onPage={handlePage} th={th} />
                             </>
