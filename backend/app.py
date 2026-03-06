@@ -9,7 +9,7 @@ Migrated from Overpass → Google Places API (New)
 """
 import os, math, logging, time, threading
 import requests as req
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 from dotenv import load_dotenv
 
@@ -203,6 +203,24 @@ def get_photo_url(photo_ref):
     if not photo_ref:
         return FALLBACK_IMAGE
     return f"https://places.googleapis.com/v1/{photo_ref}/media?maxHeightPx=400&maxWidthPx=600&key={GOOGLE_API_KEY}"
+
+
+def get_place_photo_for_merchant(merchant_name, lat, lng, radius=2000):
+    """Try to get a real business photo from Google Places for a deal merchant. Returns URL or None."""
+    if not GOOGLE_API_KEY or not merchant_name or lat is None or lng is None:
+        return None
+    try:
+        places = google_text_search(merchant_name.strip(), lat, lng, radius)
+        if not places:
+            return None
+        photos = places[0].get("photos") or []
+        if not photos:
+            return None
+        ref = photos[0].get("name")
+        return get_photo_url(ref) if ref else None
+    except Exception as e:
+        log.debug(f"Deal photo enrichment failed for {merchant_name}: {e}")
+        return None
 
 
 # ─── Map Google types → your category system ───────────────────
@@ -874,6 +892,8 @@ def fetch_discount_api_deals(location, radius=15, category_slugs=None, query=Non
         return [], 'api_error'
     raw_deals = data.get('deals') or []
     out = []
+    place_photo_enrich_count = 0
+    max_place_photo_enrich = 5
     for i, item in enumerate(raw_deals):
         d = item.get('deal') or item
         merchant = d.get('merchant') or {}
@@ -889,6 +909,22 @@ def fetch_discount_api_deals(location, radius=15, category_slugs=None, query=Non
         pct = float(d.get('discount_percentage') or 0)
         if pct <= 0 and value > 0 and price < value:
             pct = round((1 - price / value) * 100)
+        # Prefer deal image from API; build URL with size if needed; fallback to Google Places photo
+        image_url = (d.get('image_url') or '').strip()
+        if not image_url and d.get('id') is not None:
+            image_url = f"https://api.discountapi.com/v2/deals/{d.get('id')}/image?geometry=480x320C"
+        if image_url and 'discountapi.com' in image_url and 'geometry=' not in image_url:
+            image_url = image_url + ('&' if '?' in image_url else '?') + 'geometry=480x320C'
+        if not image_url and place_photo_enrich_count < max_place_photo_enrich:
+            m_lat = merchant.get('latitude')
+            m_lng = merchant.get('longitude')
+            if m_lat is not None and m_lng is not None:
+                place_photo = get_place_photo_for_merchant(merchant.get('name'), m_lat, m_lng)
+                if place_photo:
+                    image_url = place_photo
+                    place_photo_enrich_count += 1
+        if not image_url:
+            image_url = FALLBACK_IMAGE
         out.append({
             'id': f"api_{d.get('id', i)}",
             'name': merchant.get('name') or 'Local Business',
@@ -904,7 +940,7 @@ def fetch_discount_api_deals(location, radius=15, category_slugs=None, query=Non
             'code': None,
             'category': our_cat,
             'subcategory': cat_name or our_cat,
-            'image': d.get('image_url') or FALLBACK_IMAGE,
+            'image': image_url,
             'popular': (d.get('number_sold') or 0) > 10,
             'url': d.get('url'),
         })
@@ -954,6 +990,15 @@ def deals():
             'deals': [], 'total': 0, 'page': page, 'perPage': per_page,
             'error': 'Could not load deals. Try again later.', 'source': 'api'
         })
+    # Replace DiscountAPI image URLs with our proxy so the browser can load them (their API requires auth)
+    base = request.host_url.rstrip('/')
+    for deal in deals_list:
+        img = deal.get('image') or ''
+        if 'discountapi.com' in img:
+            raw_id = deal.get('id', '')
+            if isinstance(raw_id, str) and raw_id.startswith('api_'):
+                num_id = raw_id.replace('api_', '', 1)
+                deal['image'] = f'{base}/api/deals/{num_id}/image'
     return jsonify({
         'deals': deals_list,
         'total': len(deals_list),
@@ -961,6 +1006,24 @@ def deals():
         'perPage': per_page,
         'source': 'api'
     })
+
+
+@app.route('/api/deals/<deal_id>/image')
+def deal_image(deal_id):
+    """Proxy deal image from DiscountAPI (API requires auth; browser cannot load their URL directly)."""
+    if not DISCOUNT_API_KEY:
+        return Response('', status=404)
+    url = f'https://api.discountapi.com/v2/deals/{deal_id}/image'
+    params = {'api_key': DISCOUNT_API_KEY, 'geometry': request.args.get('geometry', '480x320C')}
+    try:
+        r = req.get(url, params=params, timeout=10)
+        if r.status_code != 200:
+            return Response('', status=r.status_code)
+        ct = r.headers.get('Content-Type', 'image/jpeg')
+        return Response(r.content, mimetype=ct)
+    except Exception as e:
+        log.debug(f"Deal image proxy error: {e}")
+        return Response('', status=502)
 
 
 @app.route('/api/health')

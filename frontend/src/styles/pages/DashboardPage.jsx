@@ -14,7 +14,8 @@ import {
     Thermometer, Sofa, Leaf, Shirt,
     HandMetal, Gamepad2, Church, Ticket, Landmark, ParkingCircle,
     Baby, Loader2, AlertCircle, Navigation, Glasses, Bone, PersonStanding,
-    Clock, Navigation2, ArrowRight, RefreshCw, Bot, Users, Trash2, Save
+    Clock, Navigation2, ArrowRight, RefreshCw, Bot, Users, Trash2, Save,
+    ArrowUpDown
 } from 'lucide-react';
 
 import DealsContent from './DealsPage';
@@ -994,6 +995,7 @@ const AISearchView = ({th, onBack}) => {
         <div style={{
             display: 'flex', flexDirection: 'column', height: '100%',
             position: 'relative', overflow: 'hidden',
+            width: '100%', minWidth: 0, maxWidth: '100%',
         }}>
             <button onClick={onBack} style={{
                 position: 'absolute', top: '0.7rem', left: '1rem', zIndex: 10,
@@ -1009,7 +1011,9 @@ const AISearchView = ({th, onBack}) => {
                 flex: 1, display: 'flex', flexDirection: 'column',
                 alignItems: 'center', justifyContent: 'center',
                 overflowY: showingResults ? 'auto' : 'hidden',
+                overflowX: 'hidden',
                 padding: '0.5rem 1rem',
+                minWidth: 0, width: '100%',
             }}>
                 <div style={{
                     display: 'flex',
@@ -1018,6 +1022,7 @@ const AISearchView = ({th, onBack}) => {
                     gap: '1.5rem',
                     width: '100%',
                     maxWidth: '1100px',
+                    minWidth: 0,
                 }}>
                     <div style={{
                         position: 'relative', width: `${wheelDiameter}px`, height: `${wheelDiameter}px`,
@@ -1407,6 +1412,9 @@ const DiscoverContent = ({th, favs, toggleFav}) => {
     const lastSearch = useRef({});
     const [flyTarget, setFlyTarget] = useState(null);
     const categoryFromUrlSearched = useRef(false);
+    const [sortBy, setSortBy] = useState('relevance');
+    const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
+    const sortDropdownRef = useRef(null);
 
     useEffect(() => {
         const categoryFromUrl = searchParams.get('category');
@@ -1430,7 +1438,8 @@ const DiscoverContent = ({th, favs, toggleFav}) => {
     useEffect(() => {
         const h = e => {
             if (sRef.current && !sRef.current.contains(e.target)) setShowSD(false);
-            if (lRef.current && !lRef.current.contains(e.target)) setShowLD(false)
+            if (lRef.current && !lRef.current.contains(e.target)) setShowLD(false);
+            if (sortDropdownRef.current && !sortDropdownRef.current.contains(e.target)) setSortDropdownOpen(false);
         };
         document.addEventListener('mousedown', h);
         return () => document.removeEventListener('mousedown', h);
@@ -1605,6 +1614,35 @@ const DiscoverContent = ({th, favs, toggleFav}) => {
         if (e.key === 'Enter') submit()
     };
 
+    const SORT_OPTIONS = [
+        { value: 'relevance', label: 'Relevance' },
+        { value: 'rating_high', label: 'Rating: High to Low' },
+        { value: 'rating_low', label: 'Rating: Low to High' },
+        { value: 'reviews', label: 'Most Reviews' },
+        { value: 'distance', label: 'Distance: Nearest' },
+        { value: 'name_asc', label: 'Name: A–Z' },
+        { value: 'name_desc', label: 'Name: Z–A' },
+    ];
+    const sortedBiz = useMemo(() => {
+        const list = [...biz];
+        switch (sortBy) {
+            case 'rating_high':
+                return list.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+            case 'rating_low':
+                return list.sort((a, b) => (a.rating ?? 0) - (b.rating ?? 0));
+            case 'reviews':
+                return list.sort((a, b) => (b.reviewCount ?? 0) - (a.reviewCount ?? 0));
+            case 'distance':
+                return list.sort((a, b) => (a.distanceMeters ?? 999999) - (b.distanceMeters ?? 999999));
+            case 'name_asc':
+                return list.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            case 'name_desc':
+                return list.sort((a, b) => (b.name || '').localeCompare(a.name || ''));
+            default:
+                return list;
+        }
+    }, [biz, sortBy]);
+
     if (showAI) return <AISearchView th={th} onBack={() => setShowAI(false)}/>;
 
     return (<div style={{display: 'flex', flexDirection: 'column', height: '100%', position: 'relative'}}>
@@ -1729,8 +1767,72 @@ const DiscoverContent = ({th, favs, toggleFav}) => {
             <span style={{
                 marginLeft: 'auto',
                 fontSize: '0.72rem',
-                color: th.textMuted
-            }}>{total} results{uLoc ? ' · Sorted by distance' : ''}</span></div>}
+                color: th.textMuted,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+            }}>
+                <span>{total} results</span>
+                <div ref={sortDropdownRef} style={{position: 'relative'}}>
+                    <button
+                        type="button"
+                        onClick={() => setSortDropdownOpen(o => !o)}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            padding: '0.3rem 0.5rem',
+                            borderRadius: '8px',
+                            border: `1px solid ${th.border}`,
+                            backgroundColor: th.inputBg,
+                            color: th.textSecondary,
+                            fontSize: '0.72rem',
+                            fontFamily: "'Poppins',sans-serif",
+                            cursor: 'pointer'
+                        }}
+                    >
+                        <ArrowUpDown size={12}/>
+                        {SORT_OPTIONS.find(o => o.value === sortBy)?.label || 'Sort'}
+                        <ChevronDown size={12} style={{opacity: sortDropdownOpen ? 0.7 : 0.5}}/>
+                    </button>
+                    {sortDropdownOpen && (
+                        <div style={{
+                            position: 'absolute',
+                            top: '100%',
+                            right: 0,
+                            marginTop: '0.2rem',
+                            minWidth: '180px',
+                            backgroundColor: th.dropdownBg,
+                            border: `1px solid ${th.border}`,
+                            borderRadius: '10px',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                            zIndex: 100,
+                            overflow: 'hidden'
+                        }}>
+                            {SORT_OPTIONS.map(opt => (
+                                <button
+                                    key={opt.value}
+                                    type="button"
+                                    onClick={() => { setSortBy(opt.value); setSortDropdownOpen(false); }}
+                                    style={{
+                                        width: '100%',
+                                        padding: '0.45rem 0.75rem',
+                                        border: 'none',
+                                        background: sortBy === opt.value ? th.activeBg : 'transparent',
+                                        color: sortBy === opt.value ? th.text : th.textSecondary,
+                                        fontSize: '0.78rem',
+                                        fontFamily: "'Poppins',sans-serif",
+                                        textAlign: 'left',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    {opt.label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </span></div>}
 
         {/* ── Map + List ─────────────────────────────────────── */}
         <div style={{flex: 1, position: 'relative', overflow: 'hidden'}}>
@@ -1746,7 +1848,7 @@ const DiscoverContent = ({th, favs, toggleFav}) => {
                         iconAnchor: [6, 6]
                     })}><Popup><span
                         style={{fontFamily: 'Poppins', fontSize: '0.8rem'}}>You are here</span></Popup></Marker>}
-                    {biz.map(b => (<Marker key={b.id} position={[b.lat, b.lng]} icon={pinIcon(hovBiz === b.id)}
+                    {sortedBiz.map(b => (<Marker key={b.id} position={[b.lat, b.lng]} icon={pinIcon(hovBiz === b.id)}
                                            eventHandlers={{
                                                mouseover: () => setHovBiz(b.id),
                                                mouseout: () => setHovBiz(null)
@@ -1909,13 +2011,13 @@ const DiscoverContent = ({th, favs, toggleFav}) => {
                         }}>{sq ? `"${sq}"` : selCat || 'All Businesses'}</span>
                         <span style={{fontSize: '0.7rem', color: th.textMuted, marginLeft: '0.3rem'}}>· {total} found · Page {page}/{totalPages}</span>
                     </div>
-                    <div style={{flex: 1, overflowY: 'auto'}}>{biz.map(b => <BizCard key={b.id} biz={b} th={th}
+                    <div style={{flex: 1, overflowY: 'auto'}}>{sortedBiz.map(b => <BizCard key={b.id} biz={b} th={th}
                                                                                      hov={hovBiz === b.id}
                                                                                      onHov={setHovBiz} onFav={toggleFav}
                                                                                      isFav={favs.has(b.id)}
                                                                                      onNavigate={(name) => window.location.href = `/business/${encodeURIComponent(name)}`}
                     />)}
-                        {biz.length === 0 && <div style={{textAlign: 'center', padding: '3rem 1.5rem'}}><p
+                        {sortedBiz.length === 0 && <div style={{textAlign: 'center', padding: '3rem 1.5rem'}}><p
                             style={{color: th.textMuted, fontSize: '0.88rem'}}>No businesses
                             found{sq ? ` for "${sq}"` : ''}</p><p
                             style={{color: th.textMuted, fontSize: '0.76rem', marginTop: '0.3rem'}}>Try a broader search
