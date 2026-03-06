@@ -1,6 +1,6 @@
 import React, {useState, useEffect, useRef, useCallback} from 'react';
 import {useNavigate, Link} from 'react-router-dom';
-import {SignInButton, SignUpButton, UserButton, useUser} from '@clerk/clerk-react';
+import {UserButton, useUser, useClerk} from '@clerk/clerk-react';
 import {
     Search, MapPin, Star, Heart, TrendingUp, Sparkles, X, Check,
     Store, Users, Award, Zap, Filter, ChevronRight, ArrowRight,
@@ -629,6 +629,7 @@ const CTASection = ({theme, onNavigate}) => (
 const HomePage = () => {
     const navigate = useNavigate();
     const {isSignedIn} = useUser();
+    const clerk = useClerk();
     const [isDarkMode, setIsDarkMode] = useState(true);
     const [scrollProgress, setScrollProgress] = useState(0);
     const [featuredBusinesses, setFeaturedBusinesses] = useState([]);
@@ -683,7 +684,17 @@ const HomePage = () => {
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
-    const handleButtonClick = () => navigate('/dashboard');
+    const handleButtonClick = () => {
+        if (isSignedIn) navigate('/dashboard');
+        else (clerk.redirectToSignUp && clerk.redirectToSignUp({ signUpFallbackRedirectUrl: '/dashboard' })) || clerk.openSignUp();
+    };
+
+    // #region agent log
+    useEffect(() => {
+        if (isSignedIn) return;
+        fetch('http://127.0.0.1:7475/ingest/95cc5905-1b2c-4b22-8226-7da9b2019b8a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a0d3d0'},body:JSON.stringify({sessionId:'a0d3d0',location:'HomePage.jsx:clerk-state',message:'Clerk state when signed out',data:{isSignedIn,hasClerk:!!clerk,openSignInType:typeof clerk?.openSignIn,openSignUpType:typeof clerk?.openSignUp},timestamp:Date.now(),hypothesisId:'A,C,D'})}).catch(()=>{});
+    }, [isSignedIn, clerk]);
+    // #endregion
 
     return (
         <div style={{
@@ -721,12 +732,18 @@ const HomePage = () => {
                             </>
                         ) : (
                             <>
-                                <SignInButton mode="modal">
-                                    <button style={{padding: '0.5rem 1.2rem', border: `1.5px solid ${theme.border}`, background: 'transparent', borderRadius: '10px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.84rem', color: theme.text, transition: 'all 0.2s ease'}}>Sign In</button>
-                                </SignInButton>
-                                <SignUpButton mode="modal">
-                                    <button style={{padding: '0.5rem 1.2rem', border: 'none', background: theme.accent, color: theme.accentText, borderRadius: '10px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.84rem', transition: 'all 0.2s ease'}}>Get Started</button>
-                                </SignUpButton>
+                                {/* #region agent log */}
+                                <button onClick={() => {
+                                    fetch('http://127.0.0.1:7475/ingest/95cc5905-1b2c-4b22-8226-7da9b2019b8a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a0d3d0'},body:JSON.stringify({sessionId:'a0d3d0',location:'HomePage.jsx:SignIn-click',message:'Sign In clicked',data:{hasClerk:!!clerk},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
+                                    try { (clerk.redirectToSignIn && clerk.redirectToSignIn({ signInFallbackRedirectUrl: '/dashboard' })) || clerk.openSignIn(); fetch('http://127.0.0.1:7475/ingest/95cc5905-1b2c-4b22-8226-7da9b2019b8a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a0d3d0'},body:JSON.stringify({sessionId:'a0d3d0',location:'HomePage.jsx:SignIn-after',message:'openSignIn called',data:{},timestamp:Date.now(),hypothesisId:'E'})}).catch(()=>{}); } catch (e) { fetch('http://127.0.0.1:7475/ingest/95cc5905-1b2c-4b22-8226-7da9b2019b8a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a0d3d0'},body:JSON.stringify({sessionId:'a0d3d0',location:'HomePage.jsx:SignIn-err',message:'openSignIn error',data:{err:String(e?.message||e)},timestamp:Date.now(),hypothesisId:'E'})}).catch(()=>{}); }
+                                }} style={{padding: '0.5rem 1.2rem', border: `1.5px solid ${theme.border}`, background: 'transparent', borderRadius: '10px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.84rem', color: theme.text, transition: 'all 0.2s ease'}}>Sign In</button>
+                                {/* #endregion */}
+                                <button onClick={() => {
+                                    // #region agent log
+                                    fetch('http://127.0.0.1:7475/ingest/95cc5905-1b2c-4b22-8226-7da9b2019b8a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a0d3d0'},body:JSON.stringify({sessionId:'a0d3d0',location:'HomePage.jsx:GetStarted-click',message:'Get Started clicked',data:{hasClerk:!!clerk},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
+                                    try { (clerk.redirectToSignUp && clerk.redirectToSignUp({ signUpFallbackRedirectUrl: '/dashboard' })) || clerk.openSignUp(); fetch('http://127.0.0.1:7475/ingest/95cc5905-1b2c-4b22-8226-7da9b2019b8a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a0d3d0'},body:JSON.stringify({sessionId:'a0d3d0',location:'HomePage.jsx:GetStarted-after',message:'openSignUp called',data:{},timestamp:Date.now(),hypothesisId:'E'})}).catch(()=>{}); } catch (e) { fetch('http://127.0.0.1:7475/ingest/95cc5905-1b2c-4b22-8226-7da9b2019b8a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a0d3d0'},body:JSON.stringify({sessionId:'a0d3d0',location:'HomePage.jsx:GetStarted-err',message:'openSignUp error',data:{err:String(e?.message||e)},timestamp:Date.now(),hypothesisId:'E'})}).catch(()=>{}); }
+                                    // #endregion
+                                }} style={{padding: '0.5rem 1.2rem', border: 'none', background: theme.accent, color: theme.accentText, borderRadius: '10px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.84rem', transition: 'all 0.2s ease'}}>Get Started</button>
                             </>
                         )}
                     </div>

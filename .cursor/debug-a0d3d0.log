@@ -1,0 +1,36 @@
+{"sessionId":"a0d3d0","location":"HomePage.jsx:SignIn-click","message":"Sign In clicked","data":{"hasClerk":true},"timestamp":1772815791495,"hypothesisId":"B"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:SignIn-after","message":"openSignIn called","data":{},"timestamp":1772815791496,"hypothesisId":"E"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:clerk-state","message":"Clerk state when signed out","data":{"hasClerk":true,"openSignInType":"function","openSignUpType":"function"},"timestamp":1772815794927,"hypothesisId":"A,C,D"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:clerk-state","message":"Clerk state when signed out","data":{"hasClerk":true,"openSignInType":"function","openSignUpType":"function"},"timestamp":1772815794949,"hypothesisId":"A,C,D"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:SignIn-click","message":"Sign In clicked","data":{"hasClerk":true},"timestamp":1772815795980,"hypothesisId":"B"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:SignIn-after","message":"openSignIn called","data":{},"timestamp":1772815795980,"hypothesisId":"E"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:clerk-state","message":"Clerk state when signed out","data":{"hasClerk":true,"openSignInType":"function","openSignUpType":"function"},"timestamp":1772815811160,"hypothesisId":"A,C,D"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:clerk-state","message":"Clerk state when signed out","data":{"hasClerk":true,"openSignInType":"function","openSignUpType":"function"},"timestamp":1772815811185,"hypothesisId":"A,C,D"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:SignIn-click","message":"Sign In clicked","data":{"hasClerk":true},"timestamp":1772815812611,"hypothesisId":"B"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:SignIn-after","message":"openSignIn called","data":{},"timestamp":1772815812612,"hypothesisId":"E"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:SignIn-click","message":"Sign In clicked","data":{"hasClerk":true},"timestamp":1772815813961,"hypothesisId":"B"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:SignIn-after","message":"openSignIn called","data":{},"timestamp":1772815813961,"hypothesisId":"E"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:GetStarted-click","message":"Get Started clicked","data":{"hasClerk":true},"timestamp":1772815814544,"hypothesisId":"B"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:GetStarted-after","message":"openSignUp called","data":{},"timestamp":1772815814545,"hypothesisId":"E"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:clerk-state","message":"Clerk state when signed out","data":{"hasClerk":true,"openSignInType":"function","openSignUpType":"function"},"timestamp":1772815845700,"hypothesisId":"A,C,D"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:clerk-state","message":"Clerk state when signed out","data":{"hasClerk":true,"openSignInType":"function","openSignUpType":"function"},"timestamp":1772815845716,"hypothesisId":"A,C,D"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:SignIn-click","message":"Sign In clicked","data":{"hasClerk":true},"timestamp":1772820392516,"hypothesisId":"B"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:SignIn-after","message":"openSignIn called","data":{},"timestamp":1772820392516,"hypothesisId":"E"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:SignIn-click","message":"Sign In clicked","data":{"hasClerk":true},"timestamp":1772820393915,"hypothesisId":"B"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:SignIn-after","message":"openSignIn called","data":{},"timestamp":1772820393915,"hypothesisId":"E"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:clerk-state","message":"Clerk state when signed out","data":{"hasClerk":true,"openSignInType":"function","openSignUpType":"function"},"timestamp":1772820409831,"hypothesisId":"A,C,D"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:clerk-state","message":"Clerk state when signed out","data":{"hasClerk":true,"openSignInType":"function","openSignUpType":"function"},"timestamp":1772820409882,"hypothesisId":"A,C,D"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:clerk-state","message":"Clerk state when signed out","data":{"hasClerk":true,"openSignInType":"function","openSignUpType":"function"},"timestamp":1772822660137,"hypothesisId":"A,C,D"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:clerk-state","message":"Clerk state when signed out","data":{"hasClerk":true,"openSignInType":"function","openSignUpType":"function"},"timestamp":1772822660193,"hypothesisId":"A,C,D"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:clerk-state","message":"Clerk state when signed out","data":{"hasClerk":true,"openSignInType":"function","openSignUpType":"function"},"timestamp":1772823162282,"hypothesisId":"A,C,D"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:clerk-state","message":"Clerk state when signed out","data":{"hasClerk":true,"openSignInType":"function","openSignUpType":"function"},"timestamp":1772823162319,"hypothesisId":"A,C,D"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:clerk-state","message":"Clerk state when signed out","data":{"hasClerk":true,"openSignInType":"function","openSignUpType":"function"},"timestamp":1772831359945,"hypothesisId":"A,C,D"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:clerk-state","message":"Clerk state when signed out","data":{"hasClerk":true,"openSignInType":"function","openSignUpType":"function"},"timestamp":1772831359998,"hypothesisId":"A,C,D"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:clerk-state","message":"Clerk state when signed out","data":{"hasClerk":true,"openSignInType":"function","openSignUpType":"function"},"timestamp":1772833568793,"hypothesisId":"A,C,D"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:clerk-state","message":"Clerk state when signed out","data":{"hasClerk":true,"openSignInType":"function","openSignUpType":"function"},"timestamp":1772833569320,"hypothesisId":"A,C,D"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:clerk-state","message":"Clerk state when signed out","data":{"hasClerk":true,"openSignInType":"function","openSignUpType":"function"},"timestamp":1772833569358,"hypothesisId":"A,C,D"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:clerk-state","message":"Clerk state when signed out","data":{"isSignedIn":false,"hasClerk":true,"openSignInType":"function","openSignUpType":"function"},"timestamp":1772833569666,"hypothesisId":"A,C,D"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:SignIn-click","message":"Sign In clicked","data":{"hasClerk":true},"timestamp":1772833570170,"hypothesisId":"B"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:SignIn-after","message":"openSignIn called","data":{},"timestamp":1772833570172,"hypothesisId":"E"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:clerk-state","message":"Clerk state when signed out","data":{"hasClerk":true,"openSignInType":"function","openSignUpType":"function"},"timestamp":1772833601395,"hypothesisId":"A,C,D"}
+{"sessionId":"a0d3d0","location":"HomePage.jsx:clerk-state","message":"Clerk state when signed out","data":{"hasClerk":true,"openSignInType":"function","openSignUpType":"function"},"timestamp":1772833601419,"hypothesisId":"A,C,D"}
