@@ -829,6 +829,7 @@ const AISearchView = ({th, onBack}) => {
     const [groupSize, setGroupSize] = useState(1);
     const [friendPrefs, setFriendPrefs] = useState({});
     const [hoveredFriendId, setHoveredFriendId] = useState(null);
+    const [selectedOrbitBiz, setSelectedOrbitBiz] = useState(null);
 
     const hoveredFriendPrefs = hoveredFriendId ? friendPrefs[hoveredFriendId] : null;
     const hoveredFriendProfile = hoveredFriendId
@@ -1052,7 +1053,7 @@ const AISearchView = ({th, onBack}) => {
                                 <div
                                     key={friend.clerk_user_id}
                                     title={friend.full_name || 'Friend'}
-                                onClick={() => setHoveredFriendId(prev => prev === friend.clerk_user_id ? null : friend.clerk_user_id)}
+                                onClick={() => { setSelectedOrbitBiz(null); setHoveredFriendId(prev => prev === friend.clerk_user_id ? null : friend.clerk_user_id); }}
                                     style={{
                                         position: 'absolute',
                                         width: `${FRIEND_AVT_SIZE}px`, height: `${FRIEND_AVT_SIZE}px`,
@@ -1078,18 +1079,23 @@ const AISearchView = ({th, onBack}) => {
                             const x = Math.cos(rad) * ORBIT_RADIUS;
                             const y = Math.sin(rad) * ORBIT_RADIUS;
                             const glow = glowingIndices.has(i);
+                            const isSelected = selectedOrbitBiz?.id === biz.id;
                             return (
-                                <div key={biz.id || i} style={{
+                                <div
+                                    key={biz.id || i}
+                                    onClick={(e) => { e.stopPropagation(); setHoveredFriendId(null); setSelectedOrbitBiz(prev => prev?.id === biz.id ? null : biz); }}
+                                    style={{
                                     position: 'absolute',
                                     width: `${ORBIT_IMG_SIZE}px`, height: `${ORBIT_IMG_SIZE}px`,
                                     borderRadius: '50%', overflow: 'hidden',
                                     transform: `translate(${x}px, ${y}px)`,
                                     transition: 'box-shadow 0.4s ease',
-                                    boxShadow: glow
+                                    boxShadow: glow || isSelected
                                         ? '0 0 26px rgba(139,92,246,0.9), 0 0 52px rgba(99,102,241,0.5)'
                                         : '0 4px 16px rgba(0,0,0,0.35)',
-                                    border: glow ? '3px solid rgba(139,92,246,0.9)' : `2.5px solid ${th.border}`,
+                                    border: glow || isSelected ? '3px solid rgba(139,92,246,0.9)' : `2.5px solid ${th.border}`,
                                     zIndex: 1,
+                                    cursor: 'pointer',
                                 }}>
                                     <img src={biz.image} alt={biz.name}
                                          style={{width: '100%', height: '100%', objectFit: 'cover'}} loading="lazy"/>
@@ -1171,6 +1177,79 @@ const AISearchView = ({th, onBack}) => {
                                             </div>
                                         )}
                                     </div>
+                                </div>
+                            </div>
+                        )}
+                        {selectedOrbitBiz && (
+                            <div style={{
+                                position: 'absolute',
+                                top: '50%',
+                                left: '100%',
+                                marginLeft: '16px',
+                                transform: 'translateY(-50%)',
+                                width: '280px',
+                                maxWidth: 'min(280px, calc(100vw - 32px))',
+                                borderRadius: '12px',
+                                backgroundColor: th.cardBg,
+                                border: `1px solid ${th.border}`,
+                                boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
+                                zIndex: 4,
+                                overflow: 'hidden',
+                                fontFamily: "'Poppins',sans-serif",
+                            }}>
+                                <div style={{position: 'relative', width: '100%', height: '100px', backgroundColor: th.badgeBg}}>
+                                    <img src={selectedOrbitBiz.image} alt={selectedOrbitBiz.name}
+                                         style={{width: '100%', height: '100%', objectFit: 'cover'}}/>
+                                </div>
+                                <div style={{padding: '0.65rem 0.8rem'}}>
+                                    <h3 style={{
+                                        fontSize: '0.9rem', fontWeight: '600', color: th.text, margin: '0 0 0.35rem',
+                                        lineHeight: 1.2,
+                                    }}>{selectedOrbitBiz.name}</h3>
+                                    <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.4rem'}}>
+                                        {selectedOrbitBiz.rating != null && (
+                                            <div style={{display: 'flex', alignItems: 'center', gap: '0.2rem'}}>
+                                                <Star size={12} fill="#facc15" color="#facc15"/>
+                                                <span style={{fontSize: '0.75rem', fontWeight: '600', color: th.text}}>{selectedOrbitBiz.rating}</span>
+                                                {selectedOrbitBiz.reviewCount > 0 && (
+                                                    <span style={{fontSize: '0.65rem', color: th.textMuted}}>({selectedOrbitBiz.reviewCount})</span>
+                                                )}
+                                            </div>
+                                        )}
+                                        {selectedOrbitBiz.priceLevel && <span style={{fontSize: '0.7rem', color: th.textMuted}}>{selectedOrbitBiz.priceLevel}</span>}
+                                        {selectedOrbitBiz.distanceMeters != null && (
+                                            <span style={{fontSize: '0.66rem', color: th.textMuted}}>
+                                                {selectedOrbitBiz.distanceMeters < 1000 ? `${selectedOrbitBiz.distanceMeters}m` : `${(selectedOrbitBiz.distanceMeters / 1000).toFixed(1)}km`}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {selectedOrbitBiz.description && (
+                                        <p style={{
+                                            fontSize: '0.72rem', color: th.textSecondary, lineHeight: 1.4, margin: '0 0 0.5rem',
+                                            display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                                        }}>{selectedOrbitBiz.description}</p>
+                                    )}
+                                    {selectedOrbitBiz.tagLabels?.length > 0 && (
+                                        <div style={{display: 'flex', gap: '0.25rem', flexWrap: 'wrap', marginBottom: '0.5rem'}}>
+                                            {selectedOrbitBiz.tagLabels.slice(0, 3).map(t => (
+                                                <span key={t} style={{
+                                                    padding: '0.08rem 0.35rem', borderRadius: '4px',
+                                                    backgroundColor: th.badgeBg, fontSize: '0.62rem', color: th.textSecondary,
+                                                }}>{t}</span>
+                                            ))}
+                                        </div>
+                                    )}
+                                    <button
+                                        onClick={() => selectedOrbitBiz?.id && navigate(`/business/${selectedOrbitBiz.id}`)}
+                                        style={{
+                                            width: '100%', padding: '0.4rem 0.6rem', borderRadius: '8px',
+                                            border: 'none', background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+                                            color: '#fff', fontWeight: '600', fontSize: '0.78rem',
+                                            cursor: 'pointer', fontFamily: "'Poppins',sans-serif",
+                                        }}
+                                    >
+                                        View business
+                                    </button>
                                 </div>
                             </div>
                         )}
